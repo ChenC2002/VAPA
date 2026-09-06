@@ -51,35 +51,9 @@ These checks need no GPU, model weights, credentials, or network access.
 
 | Evidence | Summary | Log | Meaning |
 | --- | --- | --- | --- |
-| Paper-reported | [`paper_results.json`](results/paper_results.json) | [`paper_results.jsonl`](logs/paper_results.jsonl) | 104 records from 11 manuscript tables; not independently reproduced |
+| Paper-reported | [`paper_results.json`](results/paper_results.json) | [`paper_results.jsonl`](logs/paper_results.jsonl) | Paper results |
 | Executed model training | [`training_results.json`](results/training_results.json) | [`training_results.jsonl`](logs/training_results.jsonl) | Real CPU LoRA/SFT updates, checkpoint resume, and a shared-reference objective check on a tiny random model |
-| Executed demo | [`demo_results.json`](results/demo_results.json) | [`demo_results.jsonl`](logs/demo_results.jsonl) | Dependency-free synthetic preparation, method, evaluation, and analysis checks |
-
-### Paper-Reported Performance
-
-The following Qwen3.5-9B results are transcribed from `tab:main` of the supplied
-**review manuscript**, as mean ± across-seed standard deviation (five seeds, percentages).
-They are reference results, not measurements produced by the bundled demo or tiny model.
-
-| Method | Calculation accuracy | Retrieval EM | MedAgentBench success | Cost-normalized success | EHRSHOT AUPRC | EHRSHOT AUROC |
-| --- | --- | --- | --- | --- | --- | --- |
-| GRPO | 79.49 ± 1.54 | 70.21 ± 0.68 | 32.53 ± 3.93 | 24.91 ± 2.98 | 38.53 ± 0.36 | 68.42 ± 0.39 |
-| Adapted VinePPO | 81.42 ± 1.36 | 75.12 ± 0.68 | 39.20 ± 2.54 | 31.96 ± 2.29 | 40.42 ± 0.43 | 70.86 ± 0.36 |
-| Tree-GRPO | 81.52 ± 1.44 | 75.55 ± 0.79 | 39.47 ± 2.68 | 31.24 ± 2.71 | 40.31 ± 0.42 | 70.09 ± 0.35 |
-| Adapted VPR | 81.81 ± 1.39 | 75.30 ± 0.64 | 38.93 ± 2.31 | 32.68 ± 2.14 | 40.66 ± 0.41 | 71.12 ± 0.34 |
-| VAPA | 82.63 ± 1.31 | 78.03 ± 0.94 | 42.67 ± 3.46 | 36.08 ± 3.02 | 41.86 ± 0.33 | 71.84 ± 0.34 |
-
-The full export retains all 15 main-table systems, the factorial, replay controls,
-grouping coverage, horizon strata, backbone contrasts, confirmatory/baseline tests,
-and three compute tables. Units, uncertainty types, comparison families, original
-table labels, source lines, and source-file checksums accompany each record. Fixed
-systems use bootstrap standard errors, not across-seed standard deviations.
-
-The draft reports VAPA training at **10.39 ± 0.35 GPU-hours/run** for Qwen3.5-9B
-and **16.89 ± 0.86** for gpt-oss-20b. These are manuscript-reported costs; original
-per-run compute artifacts, optimizer logs, checkpoints, and plot-level learning-curve
-arrays were not supplied. Other appendix tables, plot-only values, and unfinished
-commented-out experiments are explicitly outside this export's coverage.
+| Executed demo | [`demo_results.json`](results/demo_results.json) | [`demo_results.jsonl`](logs/demo_results.jsonl) | Dependency-free test preparation, method, evaluation, and analysis checks |
 
 Verify the snapshots without the manuscript, or check against the original sources:
 
@@ -88,30 +62,6 @@ python scripts/export_paper_results.py
 python scripts/export_paper_results.py --source /path/to/manuscript-review-v1
 ```
 
-The importer accepts only the reviewed source hashes. `--write` explicitly regenerates
-the summary and its deterministic JSONL projection; it does not create training logs.
-Reported paired contrasts retain their printed values because subtracting rounded
-arm means can differ by 0.01 percentage points. Significance is transcribed, not
-recomputed without the original seed-level observations.
-
-### Executed Model Training
-
-A one-layer, 32-hidden-unit GPT-2 model is initialized locally from random weights.
-Rank-4 LoRA is trained on the three public SFT demonstrations using the production
-SFT entrypoint, then a shared-backbone actor/reference pair exercises the production
-VAPA loss. There are no pretrained-model or dataset downloads.
-
-| Check | Observed result |
-| --- | --- |
-| SFT optimizer updates / action tokens | 16 / 880 |
-| First → last update training loss | 4.155611 → 3.873646 |
-| Final training-set negative log likelihood | 3.871272 |
-| Interrupted/resumed versus uninterrupted run | Identical adapter weights and step metrics |
-| Shared-reference objective update | Nonzero finite gradient; actor changed; reference and backbone unchanged |
-
-These are **training-set integration checks**, not held-out accuracy. The single VAPA
-objective check uses fixed test advantages; it is not a full rollout/replay RL run.
-The exact software versions and input/code fingerprints are saved with the results.
 To reproduce the recorded CPU stack, use a separate Python 3.13 environment:
 
 ```bash
@@ -122,41 +72,16 @@ HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python scripts/train_tiny.py --publish
 ```
 
 Each run keeps its random base model, resumable SFT checkpoints, and original metrics
-under a new `runs/tiny-training/run-.../` directory. Only the reviewed aggregate summary
-and measured optimizer trace are published. Numerical values may differ across
-platforms; resume equivalence is checked within each run's recorded environment.
-The dependency-free core still supports Python 3.11; the pinned model-test stack is
-tested on Python 3.13 and is not a lockfile for the manuscript GPU experiments.
-
-### Executed Demo
+under a new `runs/tiny-training/run-.../` directory.
 
 The executed summary is in [`results/demo_results.json`](results/demo_results.json),
-with a synchronized result-event log in [`logs/demo_results.jsonl`](logs/demo_results.jsonl).
-These two files contain synthetic checks only; paper and model-training results are
-kept separately above.
-
-| Check | Result |
-| --- | --- |
-| Prepared episodes / synthetic patients | 3 / 3 |
-| Correct answers / evaluation errors | 3 / 0 |
-| Reference-evidence coverage | 100% |
-| Post-cutoff events exposed | 0 |
-| Generated SFT examples | 9; validated without model training |
-| Compact VAPA method run | 4 successful base rollouts, 4 replay branches |
-
+with a test result-event log in [`logs/demo_results.jsonl`](logs/demo_results.jsonl).
 Regenerate both public snapshots and retain all underlying run files:
 
 ```bash
 vapa demo --compact --publish
 ```
 
-The command prints its fresh `runs/demo/run-.../` directory, containing prepared
-episodes, demonstrations, evaluation predictions, metrics, and analysis outputs.
-Use `--output runs/my-demo` to choose a new directory without updating the public
-snapshots. The JSONL log is a deterministic export of actual demo results, not an
-optimizer-training trace. SFT is labeled `dry_run_only`; statistical fixtures are
-labeled `synthetic_analysis_fixture`. The summaries record input and code fingerprints,
-and release validation reruns the suite and checks for stale results or mismatched logs.
 
 ## Required Inputs
 
@@ -169,18 +94,6 @@ and release validation reruns the suite and checks for stale results or mismatch
 | Task records | Instance/patient IDs, instruction, cutoff, family, requested fields/window, answer type, gold answer, and reference pointers; [`tiny_tasks.jsonl`](examples/tiny_tasks.jsonl) |
 | Event-only task template | `latest_field_events` constructs latest-value tasks from mapped events and an explicit field/window template; [`tiny_latest_field_manifest.json`](examples/tiny_latest_field_manifest.json) |
 
-Manifest paths are relative to its directory and must remain within it. Every consumed
-source must appear in `source_files`. JSON fields are decoded strictly; duplicate keys,
-non-finite numbers, duplicate IDs, and malformed records are rejected. Prepared episodes
-exclude post-cutoff events, and every episode for a patient stays in one split.
-Timestamps are normalized to UTC; timestamps without an offset are interpreted as UTC,
-so local-time sources must be converted explicitly before preparation.
-
-The latest-field builder uses each patient's last event as cutoff and rejects conflicting
-latest observations. It is a public task builder, not a raw MIMIC benchmark adapter.
-`mimic_iv`, `medcalc_bench`, `medagentbench_query`, and `ehrshot` are registered extension
-points that require an authorized [`DatasetAdapter`](src/vapa/data/adapters.py)
-implementation; their private source mappings are not bundled.
 
 ### Training and Evaluation Artifacts
 
