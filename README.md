@@ -1,11 +1,5 @@
 # Where Credit Lands: Step-Level Advantages for Bounded-Memory EHR Agents
 
-Anonymous review package. Use an anonymous hosting destination and anonymous commit
-metadata when uploading; a personal account or an already-public matching project can
-still reveal authorship. The manuscript source uses a neutral alias, with original
-content checksums retained for verification. Synthetic fixtures, executed training
-checks, and manuscript-reported results remain explicitly distinguished below.
-
 **VAPA** (**V**erifier-**A**nchored **P**rocess **A**dvantage) learns how to retrieve cutoff-valid evidence, maintain a bounded memory, and answer EHR questions under an action budget. Deterministic verifiers score checkable actions, forked replay creates local comparisons, and a two-level estimator combines step credit with terminal answer rewards. Replay and verifiers are used only during training.
 
 ## Method Map
