@@ -14,7 +14,7 @@
 | Evaluation | [`runner.py`](src/vapa/evaluation/runner.py), [`analysis.py`](src/vapa/evaluation/analysis.py), [`reporting.py`](src/vapa/evaluation/reporting.py) | Run checkpoint-backed inference and compute binary, factorial, horizon, and profile statistics |
 
 Versioned prompts and manifest schemas live in
-[`public_core_v1/`](src/vapa/releases/public_core_v1/). Synthetic inputs are in
+[`public_core_v1/`](src/vapa/releases/public_core_v1/). Test example is in
 [`examples/`](examples/), experiment settings in [`configs/`](configs/), and regression
 tests in [`tests/`](tests/). The `scripts/` entrypoints use the same implementations as
 the installed commands below.
