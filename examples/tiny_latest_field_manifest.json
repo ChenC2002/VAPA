@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "content_kind": "public",
+  "adapter": "latest_field_events",
+  "source_files": ["tiny_events.csv"],
+  "events": {
+    "path": "tiny_events.csv",
+    "format": "csv",
+    "columns": {
+      "pointer": "event_id",
+      "patient_id": "patient",
+      "timestamp": "when",
+      "domain": "kind",
+      "field": "name",
+      "value": "reading",
+      "unit": "unit"
+    },
+    "json_fields": ["value"]
+  },
+  "adapter_config": {
+    "fields": ["hba1c"],
+    "requested_window": "last 90d",
+    "family": "latest_laboratory_value",
+    "task_type": "latest_laboratory_value",
+    "instruction_template": "What is the latest {field} in {window}?",
+    "answer_type": "number"
+  },
+  "splits": {
+    "train": 1.0,
+    "validation": 0.0,
+    "test": 0.0,
+    "seed": 13,
+    "namespace": "vapa-public-latest-field-v1"
+  }
+}

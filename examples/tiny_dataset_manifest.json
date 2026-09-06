@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "content_kind": "public",
+  "adapter": "generic_events",
+  "source_files": ["tiny_events.csv", "tiny_tasks.jsonl"],
+  "events": {
+    "path": "tiny_events.csv",
+    "format": "csv",
+    "columns": {
+      "pointer": "event_id",
+      "patient_id": "patient",
+      "timestamp": "when",
+      "domain": "kind",
+      "field": "name",
+      "value": "reading",
+      "unit": "unit"
+    },
+    "json_fields": ["value"]
+  },
+  "tasks": {
+    "path": "tiny_tasks.jsonl",
+    "format": "jsonl",
+    "columns": {
+      "instance_id": "task_id",
+      "patient_id": "patient",
+      "instruction": "prompt",
+      "cutoff": "cutoff_at",
+      "family": "task_family",
+      "gold_answer": "answer",
+      "requested_fields": "fields",
+      "requested_window": "window",
+      "answer_type": "answer_kind",
+      "metadata": "metadata",
+      "reference_evidence": "evidence"
+    }
+  },
+  "splits": {
+    "train": 1.0,
+    "validation": 0.0,
+    "test": 0.0,
+    "seed": 13,
+    "namespace": "vapa-public-tiny-v1"
+  }
+}

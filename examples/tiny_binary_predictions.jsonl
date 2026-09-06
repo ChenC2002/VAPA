@@ -1,0 +1,16 @@
+{"format_valid":true,"instance_id":"a-p1-neg","label":0,"patient_id":"patient-1","schema_version":1,"score":0.1,"seed":null,"system_id":"good","task_id":"task-a"}
+{"format_valid":true,"instance_id":"a-p1-pos","label":1,"patient_id":"patient-1","schema_version":1,"score":0.9,"seed":null,"system_id":"good","task_id":"task-a"}
+{"format_valid":true,"instance_id":"a-p2-neg","label":0,"patient_id":"patient-2","schema_version":1,"score":0.2,"seed":null,"system_id":"good","task_id":"task-a"}
+{"format_valid":true,"instance_id":"a-p2-pos","label":1,"patient_id":"patient-2","schema_version":1,"score":0.8,"seed":null,"system_id":"good","task_id":"task-a"}
+{"format_valid":true,"instance_id":"b-p1-neg","label":0,"patient_id":"patient-1","schema_version":1,"score":0.15,"seed":null,"system_id":"good","task_id":"task-b"}
+{"format_valid":true,"instance_id":"b-p1-pos","label":1,"patient_id":"patient-1","schema_version":1,"score":0.85,"seed":null,"system_id":"good","task_id":"task-b"}
+{"format_valid":true,"instance_id":"b-p2-neg","label":0,"patient_id":"patient-2","schema_version":1,"score":0.25,"seed":null,"system_id":"good","task_id":"task-b"}
+{"format_valid":true,"instance_id":"b-p2-pos","label":1,"patient_id":"patient-2","schema_version":1,"score":0.75,"seed":null,"system_id":"good","task_id":"task-b"}
+{"format_valid":true,"instance_id":"a-p1-neg","label":0,"patient_id":"patient-1","schema_version":1,"score":0.9,"seed":null,"system_id":"bad","task_id":"task-a"}
+{"format_valid":true,"instance_id":"a-p1-pos","label":1,"patient_id":"patient-1","schema_version":1,"score":0.1,"seed":null,"system_id":"bad","task_id":"task-a"}
+{"format_valid":true,"instance_id":"a-p2-neg","label":0,"patient_id":"patient-2","schema_version":1,"score":0.8,"seed":null,"system_id":"bad","task_id":"task-a"}
+{"format_valid":true,"instance_id":"a-p2-pos","label":1,"patient_id":"patient-2","schema_version":1,"score":0.2,"seed":null,"system_id":"bad","task_id":"task-a"}
+{"format_valid":true,"instance_id":"b-p1-neg","label":0,"patient_id":"patient-1","schema_version":1,"score":0.85,"seed":null,"system_id":"bad","task_id":"task-b"}
+{"format_valid":true,"instance_id":"b-p1-pos","label":1,"patient_id":"patient-1","schema_version":1,"score":0.15,"seed":null,"system_id":"bad","task_id":"task-b"}
+{"format_valid":true,"instance_id":"b-p2-neg","label":0,"patient_id":"patient-2","schema_version":1,"score":0.75,"seed":null,"system_id":"bad","task_id":"task-b"}
+{"format_valid":true,"instance_id":"b-p2-pos","label":1,"patient_id":"patient-2","schema_version":1,"score":0.25,"seed":null,"system_id":"bad","task_id":"task-b"}

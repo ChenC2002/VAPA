@@ -1,0 +1,73 @@
+{
+  "schema_version": "vapa-tiny-training-v1",
+  "kind": "executed_synthetic_model_training",
+  "paper_reproduction": false,
+  "full_rl_rollout_training": false,
+  "seed": 7,
+  "model": {
+    "architecture": "GPT2LMHeadModel",
+    "initialization": "random_from_config_no_pretrained_weights",
+    "parameters": 22944,
+    "layers": 1,
+    "hidden_size": 32,
+    "heads": 2,
+    "context_tokens": 256,
+    "vocab_size": 62,
+    "lora_rank": 4,
+    "lora_alpha": 8,
+    "lora_targets": [
+      "c_attn",
+      "c_proj",
+      "c_fc"
+    ],
+    "base_weights_sha256": "d8bc1a8ab849c909231f16757f977ca97e16b6bc6acd3f8227ac16420f79940b"
+  },
+  "environment": {
+    "python": "3.13.5",
+    "platform": "Darwin",
+    "architecture": "arm64",
+    "device": "cpu",
+    "dtype": "float32",
+    "threads": 1,
+    "packages": {
+      "torch": "2.14.0",
+      "transformers": "5.16.1",
+      "peft": "0.20.0",
+      "tokenizers": "0.23.2",
+      "numpy": "2.5.2",
+      "safetensors": "0.8.0",
+      "accelerate": "1.14.0"
+    }
+  },
+  "provenance": {
+    "fixture": "examples/tiny_sft.jsonl",
+    "fixture_sha256": "f159f248655533e6d5375f9063208de83ad4cb756186131b358c7ddf210af25b",
+    "implementation_sha256": "8ce2af84aa2f7a8f142affb7e7a986b706c8108fc69059c25104951e3218ea52",
+    "runner_sha256": "4001e9d6c45af7cfe0c605d3306ac7fb890f3fbddc1ad1f23f975b33815183bb"
+  },
+  "sft": {
+    "optimizer_steps": 16,
+    "action_tokens": 880,
+    "examples": 3,
+    "first_update_loss": 4.155611324310303,
+    "last_update_loss": 3.8736460208892827,
+    "final_training_set_nll": 3.871272087097168,
+    "learning_rate": 0.01,
+    "evaluation_scope": "training_fixture_only_no_held_out_accuracy"
+  },
+  "checks": {
+    "resume_matches_uninterrupted": true,
+    "sft_loss_decreased": true,
+    "actor_changed": true,
+    "reference_unchanged": true,
+    "backbone_unchanged": true,
+    "nonzero_finite_gradient": true
+  },
+  "trace_sha256": "41f2f3fdb8e4e4a7f6f843f64c33da9f43dce288bdd6beef59f12bb371b1ae1a",
+  "limitations": [
+    "Tiny random model and three synthetic demonstrations, not Qwen3.5-9B or gpt-oss-20b.",
+    "SFT losses are measured on training examples; no generalization or clinical-performance claim.",
+    "The VAPA optimizer check uses fixed test advantages and does not run rollout sampling, replay, or benchmark evaluation.",
+    "Resume equivalence is verified on this recorded software/platform; other platforms may differ numerically."
+  ]
+}

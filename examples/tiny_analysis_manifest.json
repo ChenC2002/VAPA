@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "analysis_id": "vapa-public-binary-demo-v1",
+  "paper_exact": false,
+  "records_sha256": "81a0898c7a440851532d6e9ed891f601602b0e8cb24babdc4f3f28e3bae35ec4",
+  "seed": 17,
+  "task_cap": 8,
+  "bootstrap_replicates": 100,
+  "contrasts": [
+    {
+      "name": "good-minus-bad",
+      "left_system": "good",
+      "right_system": "bad"
+    }
+  ]
+}

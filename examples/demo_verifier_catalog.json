@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "catalog_id": "demo-v1-not-paper-exact",
+  "paper_exact": false,
+  "warning": "The paper does not publish the complete predicate list or numerical weights.",
+  "weights": {
+    "exact": 2.0,
+    "heuristic": 1.0
+  },
+  "families": [
+    "extraction",
+    "grounding",
+    "temporal_validity",
+    "missingness",
+    "status_and_scope",
+    "compression_and_discard",
+    "stopping"
+  ]
+}

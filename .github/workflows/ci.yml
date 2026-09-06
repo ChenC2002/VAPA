@@ -1,0 +1,53 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  model:
+    runs-on: ubuntu-latest
+    env:
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: python -m pip install torch -c configs/model_test_constraints.txt --index-url https://download.pytorch.org/whl/cpu
+      - run: python -m pip install -e '.[dev]' transformers peft -c configs/model_test_constraints.txt
+      - run: pytest -m model
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e '.[dev]'
+      - run: ruff check src tests scripts
+      - run: ruff format --check src tests scripts
+      - run: pytest
+      - run: python scripts/validate_release.py
+      - run: python -m build
+      - run: python -m pip install --force-reinstall dist/*.whl
+      - name: Validate the installed wheel outside the checkout
+        working-directory: /tmp
+        run: |
+          vapa validate-public-core
+          vapa show-training-plan
+          vapa demo --compact --examples "$GITHUB_WORKSPACE/examples" --output /tmp/vapa-ci-demo
+          for entrypoint in vapa-generate-sft vapa-train-sft vapa-analyze vapa-report; do
+            "$entrypoint" --help
+          done
+          vapa-train "$GITHUB_WORKSPACE/configs/vapa_qwen.toml" \
+            "$GITHUB_WORKSPACE/examples/tiny_episode.json" /tmp/vapa-ci-rl --dry-run --demo-catalogs \
+            --verifier-manifest "$GITHUB_WORKSPACE/examples/demo_verifier_catalog.json" \
+            --calculator-manifest "$GITHUB_WORKSPACE/examples/tiny_calculators.json"

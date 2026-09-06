@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:vapa:public-core-v1:schema:verifier-manifest",
+  "title": "VAPA public-core verifier manifest",
+  "description": "Closed contract for non-paper-exact deterministic process verifiers.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "release_id", "catalog_id", "paper_exact", "warning", "predicates"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "release_id": {"const": "public_core_v1"},
+    "catalog_id": {"type": "string", "minLength": 1},
+    "paper_exact": {"const": false},
+    "warning": {"const": "This public core release is a non-paper-exact interoperability bundle; it is not the unreleased author artifact."},
+    "predicates": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/item"}
+    }
+  },
+  "$defs": {
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "family", "reliability", "weight", "implementation"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "family": {"enum": ["extraction", "grounding", "temporal_validity", "missingness", "status_and_scope", "compression_and_discard", "stopping"]},
+        "reliability": {"type": "string", "minLength": 1},
+        "weight": {"type": "number", "exclusiveMinimum": 0},
+        "implementation": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

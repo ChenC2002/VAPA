@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "fixture_id": "vapa-public-tiny-v1",
+  "paper_exact": false,
+  "metrics": {
+    "by_family": {
+      "latest_laboratory_value": {
+        "instances": 3,
+        "mean_action_cost": 2.0,
+        "task_success": 100.0
+      }
+    },
+    "by_task": {
+      "latest_laboratory_value": {
+        "cost_normalized_success": 83.33333333333333,
+        "instances": 3,
+        "task_success": 100.0
+      }
+    },
+    "cost_normalized_success": 83.33333333333334,
+    "errors": 0,
+    "instances": 3,
+    "macro_task_success": 100.0,
+    "mean_action_cost": 2.0,
+    "mean_sampled_tokens": 3.0,
+    "reference_evidence_coverage": 100.0,
+    "successful": 3,
+    "task_success": 100.0,
+    "termination_rate": 100.0
+  }
+}

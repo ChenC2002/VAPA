@@ -1,0 +1,9 @@
+# Tested CPU smoke stack; not a lockfile for the manuscript GPU experiments.
+# Use Python 3.13, as recorded in the results (NumPy 2.5 requires Python >=3.12).
+torch==2.14.0
+transformers==5.16.1
+peft==0.20.0
+tokenizers==0.23.2
+numpy==2.5.2
+safetensors==0.8.0
+accelerate==1.14.0

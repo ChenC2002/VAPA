@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:vapa:public-core-v1:schema:task-manifest",
+  "title": "VAPA public-core task manifest",
+  "description": "Closed contract for non-paper-exact task definitions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "release_id", "catalog_id", "paper_exact", "warning", "tasks"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "release_id": {"const": "public_core_v1"},
+    "catalog_id": {"type": "string", "minLength": 1},
+    "paper_exact": {"const": false},
+    "warning": {"const": "This public core release is a non-paper-exact interoperability bundle; it is not the unreleased author artifact."},
+    "tasks": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/item"}
+    }
+  },
+  "$defs": {
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_id", "domain", "instruction_template", "answer_type", "reference_program"],
+      "properties": {
+        "task_id": {"type": "string", "minLength": 1},
+        "domain": {"enum": ["calculation", "retrieval", "transfer"]},
+        "instruction_template": {"type": "string", "minLength": 1},
+        "answer_type": {"enum": ["boolean", "categorical", "number", "string"]},
+        "reference_program": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

@@ -1,0 +1,78 @@
+"""Strict dataset I/O, integrity manifests, and patient-disjoint splits."""
+
+from vapa.data.adapters import (
+    CredentialedAdapterUnavailable,
+    DatasetAdapter,
+    GenericEventAdapter,
+    LatestFieldEventAdapter,
+    builtin_adapters,
+)
+from vapa.data.episodes import (
+    episode_from_record,
+    episode_to_record,
+    load_episode_objects,
+    write_episode_jsonl,
+)
+from vapa.data.io import (
+    DataValidationError,
+    IntegrityError,
+    build_manifest,
+    build_sha256_manifest,
+    load_episodes,
+    load_events,
+    load_json,
+    load_jsonl,
+    load_records,
+    sha256_bytes,
+    sha256_file,
+    sha256_json,
+    verify_manifest,
+    verify_sha256_manifest,
+    write_sha256_manifest,
+)
+from vapa.data.pipeline import PreparationResult, prepare_dataset
+from vapa.data.splits import (
+    SplitFractions,
+    assert_patient_disjoint,
+    assign_patient_split,
+    hash_split,
+    patient_disjoint_hash_split,
+    patient_hash,
+    validate_patient_disjoint,
+)
+
+__all__ = [
+    "DataValidationError",
+    "CredentialedAdapterUnavailable",
+    "DatasetAdapter",
+    "GenericEventAdapter",
+    "LatestFieldEventAdapter",
+    "IntegrityError",
+    "PreparationResult",
+    "SplitFractions",
+    "assert_patient_disjoint",
+    "assign_patient_split",
+    "build_manifest",
+    "build_sha256_manifest",
+    "builtin_adapters",
+    "hash_split",
+    "episode_from_record",
+    "episode_to_record",
+    "load_episodes",
+    "load_events",
+    "load_json",
+    "load_jsonl",
+    "load_records",
+    "load_episode_objects",
+    "patient_disjoint_hash_split",
+    "patient_hash",
+    "prepare_dataset",
+    "sha256_bytes",
+    "sha256_file",
+    "sha256_json",
+    "validate_patient_disjoint",
+    "verify_manifest",
+    "verify_sha256_manifest",
+    "write_sha256_manifest",
+    "write_episode_jsonl",
+]

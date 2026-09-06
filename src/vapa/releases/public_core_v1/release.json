@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "release_id": "public_core_v1",
+  "version": "1.0.0",
+  "status": "public_reference",
+  "paper_exact": false,
+  "warning": "This public core release is a non-paper-exact interoperability bundle; it is not the unreleased author artifact.",
+  "prompts": {
+    "system": "prompts/system_prompt.txt",
+    "user": "prompts/user_prompt.txt"
+  },
+  "schemas": {
+    "calculator": "schemas/calculator_manifest.schema.json",
+    "task": "schemas/task_manifest.schema.json",
+    "verifier": "schemas/verifier_manifest.schema.json"
+  }
+}

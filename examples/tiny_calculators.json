@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "paper_exact": false,
+  "calculators": [
+    {
+      "name": "mean_arterial_pressure_demo",
+      "inputs": [
+        {"name": "sbp", "fields": ["systolic_blood_pressure"], "unit": "mmHg"},
+        {"name": "dbp", "fields": ["diastolic_blood_pressure"], "unit": "mmHg"}
+      ],
+      "expression": "(sbp + 2 * dbp) / 3",
+      "output_unit": "mmHg",
+      "output_decimals": 1,
+      "absolute_tolerance": 0.05
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "paper_exact": false,
+  "status": "names-only outline extracted from the manuscript; formulas and rules must be supplied by the frozen author manifest",
+  "calculation": {
+    "standard": [
+      "delta_gap",
+      "ckd_epi_gfr",
+      "free_water_deficit",
+      "corrected_calcium",
+      "maintenance_fluids",
+      "body_mass_index",
+      "body_surface_area",
+      "anion_gap",
+      "corrected_sodium_hillier",
+      "creatinine_clearance_cockcroft_gault",
+      "fractional_excretion_sodium",
+      "mean_arterial_pressure",
+      "serum_osmolality"
+    ],
+    "operationalized_proxies": [
+      "perc_rule",
+      "caprini",
+      "heart",
+      "sofa",
+      "glasgow_coma_scale",
+      "wells_dvt",
+      "meld_na",
+      "padua_prediction",
+      "curb_65",
+      "wells_pe",
+      "cha2ds2_vasc",
+      "has_bled",
+      "revised_cardiac_risk_index",
+      "child_pugh",
+      "apache_ii",
+      "qsofa"
+    ]
+  },
+  "retrieval": [
+    "latest_laboratory_value",
+    "medication_activity_at_time",
+    "first_pre_cutoff_diagnosis",
+    "procedure_within_window",
+    "recorded_versus_missing"
+  ],
+  "ehrshot_transfer": [
+    "long_length_of_stay",
+    "30_day_readmission",
+    "icu_transfer",
+    "anemia",
+    "hyponatremia",
+    "thrombocytopenia",
+    "hyperlipidemia",
+    "hypertension"
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "schema_version": "vapa-experiment-report-v1",
+  "report_id": "vapa-public-experiment-report-v1",
+  "records_sha256": "2ead30bcf06f7f76115e79096323f2034693e0a7c87007ffe9ed1b4ac2669b5a",
+  "factorial": {
+    "arms": {
+      "a1": "sys_a1",
+      "a2": "sys_a2",
+      "a3": "sys_a3",
+      "a4": "sys_a4"
+    },
+    "metrics": [
+      "success"
+    ]
+  },
+  "horizon": {
+    "systems": [
+      "sys_a1",
+      "sys_a4"
+    ],
+    "metrics": [
+      "success"
+    ],
+    "contrasts": [
+      {
+        "name": "vapa_minus_grpo",
+        "left": "sys_a4",
+        "right": "sys_a1"
+      }
+    ],
+    "decision_depths": [
+      1,
+      6
+    ]
+  },
+  "profile": {
+    "systems": [
+      "sys_a1",
+      "sys_a4"
+    ],
+    "metrics": [
+      "success"
+    ],
+    "profiles": [
+      "short",
+      "long"
+    ],
+    "bootstrap_draws": 200,
+    "bootstrap_seed": 0,
+    "contrasts": [
+      {
+        "name": "vapa_minus_grpo",
+        "left": "sys_a4",
+        "right": "sys_a1"
+      }
+    ]
+  },
+  "confirmatory_tests": [
+    "factorial:success:interaction",
+    "horizon:success:contrast:vapa_minus_grpo"
+  ]
+}

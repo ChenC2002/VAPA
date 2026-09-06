@@ -1,0 +1,9 @@
+extends = "vapa_qwen.toml"
+name = "a4_vapa_gpt_oss_20b"
+
+[model]
+name = "openai/gpt-oss-20b"
+thinking = false
+reasoning_effort = "low"
+dequantize_mxfp4 = true
+dtype = "bfloat16"

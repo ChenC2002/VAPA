@@ -1,0 +1,6 @@
+extends = "vapa_qwen.toml"
+name = "vapa_no_fork_matched_qwen3_5_9b"
+
+[replay]
+fork_enabled = false
+reallocate_disabled_forks = true

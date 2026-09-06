@@ -1,0 +1,23 @@
+[VAPA PUBLIC CORE V1 - NON-PAPER-EXACT TEMPLATE]
+Instruction:
+{{instruction}}
+
+Evidence cutoff:
+{{cutoff}}
+
+Most recent tool return:
+{{tool_return}}
+
+Bounded structured memory:
+{{memory}}
+
+Compact action history:
+{{history}}
+
+Remaining action budget:
+{{remaining_budget}}
+
+Legal actions:
+{{legal_actions}}
+
+Return one action and no surrounding prose.

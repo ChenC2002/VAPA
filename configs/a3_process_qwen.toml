@@ -1,0 +1,10 @@
+extends = "vapa_qwen.toml"
+name = "a3_process_qwen3_5_9b"
+
+[credit]
+local_weight = 0.0
+use_step_credit = false
+
+[replay]
+max_fork_states = 0
+siblings_per_fork = 0

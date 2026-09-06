@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:vapa:public-core-v1:schema:calculator-manifest",
+  "title": "VAPA public-core calculator manifest",
+  "description": "Closed contract for non-paper-exact calculator catalogs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "release_id", "catalog_id", "paper_exact", "warning", "calculators"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "release_id": {"const": "public_core_v1"},
+    "catalog_id": {"type": "string", "minLength": 1},
+    "paper_exact": {"const": false},
+    "warning": {"const": "This public core release is a non-paper-exact interoperability bundle; it is not the unreleased author artifact."},
+    "calculators": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/item"}
+    }
+  },
+  "$defs": {
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "fields", "unit"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "fields": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "unit": {"type": ["string", "null"]}
+      }
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "inputs", "expression", "output_unit", "output_decimals", "absolute_tolerance"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "inputs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/input"}},
+        "expression": {"type": "string", "minLength": 1},
+        "output_unit": {"type": ["string", "null"]},
+        "output_decimals": {"type": "integer", "minimum": 0},
+        "absolute_tolerance": {"type": "number", "minimum": 0}
+      }
+    }
+  }
+}

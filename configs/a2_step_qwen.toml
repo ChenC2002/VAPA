@@ -1,0 +1,6 @@
+extends = "vapa_qwen.toml"
+name = "a2_step_qwen3_5_9b"
+
+[credit]
+process_weight = 0.0
+use_process_rewards = false

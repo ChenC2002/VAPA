@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "instance_id": "synthetic-latest-hba1c",
+  "patient_id": "synthetic-patient-001",
+  "instruction": "What is the latest pre-cutoff HbA1c in the last 90 days?",
+  "family": "latest_laboratory_value",
+  "cutoff": "2026-01-10T00:00:00+00:00",
+  "requested_fields": ["hba1c"],
+  "requested_window": "last 90d",
+  "answer_type": "number",
+  "metadata": {
+    "history_quartile": 1,
+    "suite": "retrieval",
+    "task_type": "latest_laboratory_value"
+  },
+  "gold_answer": 6.4,
+  "reference_evidence": ["e#1002"],
+  "events": [
+    {
+      "pointer": "e#1001",
+      "patient_id": "synthetic-patient-001",
+      "timestamp": "2025-06-10T00:00:00+00:00",
+      "domain": "lab",
+      "field": "hba1c",
+      "value": 7.9,
+      "unit": "%",
+      "source": "synthetic"
+    },
+    {
+      "pointer": "e#1002",
+      "patient_id": "synthetic-patient-001",
+      "timestamp": "2025-12-20T00:00:00+00:00",
+      "domain": "lab",
+      "field": "hba1c",
+      "value": 6.4,
+      "unit": "%",
+      "source": "synthetic"
+    },
+    {
+      "pointer": "e#future",
+      "patient_id": "synthetic-patient-001",
+      "timestamp": "2026-01-11T00:00:00+00:00",
+      "domain": "lab",
+      "field": "hba1c",
+      "value": 9.9,
+      "unit": "%",
+      "source": "synthetic"
+    }
+  ]
+}

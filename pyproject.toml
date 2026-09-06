@@ -1,0 +1,72 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vapa-ehr"
+version = "0.2.0"
+description = "Verifier-Anchored Process Advantage for bounded-memory EHR agents"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Anonymous authors" }]
+keywords = ["ehr", "llm-agents", "reinforcement-learning", "credit-assignment"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = []
+
+[project.optional-dependencies]
+train = [
+  "accelerate>=1.2",
+  "numpy>=1.26",
+  "Pillow>=10.4",
+  "peft>=0.20",
+  "torch>=2.5",
+  "torchvision>=0.20",
+  "transformers>=5.13",
+]
+# Preparation and statistical analysis use the standard library.
+data = []
+eval = []
+dev = ["build>=1.2", "pytest>=8.3", "pytest-cov>=6", "ruff>=0.9"]
+all = ["vapa-ehr[train,dev]"]
+
+[project.scripts]
+vapa = "vapa.cli:main"
+vapa-analyze = "vapa.evaluation.analysis:main"
+vapa-report = "vapa.evaluation.reporting:main"
+vapa-generate-sft = "vapa.training.demonstrations:main"
+vapa-train = "vapa.training.rl_train:main"
+vapa-train-sft = "vapa.training.sft_train:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"vapa.releases.public_core_v1" = [
+  "README.md",
+  "manifest.json",
+  "release.json",
+  "prompts/*.txt",
+  "schemas/*.json",
+]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+pythonpath = ["src"]
+markers = ["model: optional real CPU model training integration tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

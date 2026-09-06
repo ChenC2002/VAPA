@@ -1,0 +1,5 @@
+event_id,patient,when,kind,name,reading,unit
+e-p1-old,p1,2025-12-20T00:00:00Z,lab,hba1c,6.4,%
+e-p1-future,p1,2026-01-11T00:00:00Z,lab,hba1c,9.9,%
+e-p2-old,p2,2025-12-21T00:00:00Z,lab,hba1c,5.8,%
+e-p3-old,p3,2025-12-22T00:00:00Z,lab,hba1c,7.1,%

@@ -1,0 +1,42 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv*/
+venv/
+/build/
+/dist/
+.DS_Store
+
+# Private run artifacts are ignored; only reviewed demo snapshots are retained.
+/data/
+artifacts/
+checkpoints/
+/results/*
+!/results/demo_results.json
+!/results/paper_results.json
+!/results/training_results.json
+/logs/*
+!/logs/demo_results.jsonl
+!/logs/paper_results.jsonl
+!/logs/training_results.jsonl
+runs/
+wandb/
+.env
+.env.*
+*.key
+*.pem
+*credentials*.json
+*secrets*.json
+
+# Local model and dataset caches.
+.cache/
+*.safetensors
+*.pt
+*.pth
+
+# PDF inspection intermediates.
+tmp/

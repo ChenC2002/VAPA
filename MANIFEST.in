@@ -1,0 +1,14 @@
+include README.md
+include pyproject.toml
+include .gitignore
+recursive-include configs *.json *.toml *.txt
+recursive-include examples *.csv *.json *.jsonl
+recursive-include scripts *.py
+recursive-include src/vapa/releases *.json *.md *.txt
+recursive-include tests *.py
+include results/demo_results.json
+include logs/demo_results.jsonl
+include results/paper_results.json
+include logs/paper_results.jsonl
+include results/training_results.json
+include logs/training_results.jsonl

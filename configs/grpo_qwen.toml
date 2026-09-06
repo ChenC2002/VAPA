@@ -1,0 +1,46 @@
+name = "a1_grpo_qwen3_5_9b"
+seed = 0
+
+[environment]
+memory_capacity = 8
+action_budget = 12
+turn_cap = 16
+context_tokens = 32768
+max_turn_tokens = 512
+
+[credit]
+process_weight = 0.0
+cost_weight = 0.02
+process_discount = 1.0
+local_weight = 0.0
+epsilon = 0.00000001
+use_process_rewards = false
+use_step_credit = false
+
+[replay]
+base_group_size = 8
+max_fork_states = 0
+siblings_per_fork = 0
+memory_pressure_fraction = 0.75
+
+[optimization]
+sft_learning_rate = 0.0001
+rl_learning_rate = 0.000005
+sampled_token_budget = 33554432
+update_token_floor = 131072
+warmup_fraction = 0.03
+final_lr_fraction = 0.10
+weight_decay = 0.01
+gradient_clip = 1.0
+kl_weight = 0.01
+lora_rank = 16
+lora_alpha = 32
+lora_dropout = 0.0
+
+[model]
+name = "Qwen/Qwen3.5-9B"
+thinking = false
+dtype = "bfloat16"
+temperature = 1.0
+top_p = 1.0
+top_k = 0
