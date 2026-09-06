@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import os
 import runpy
+import subprocess
+import sys
+import tarfile
 import zipfile
 from pathlib import Path
 
@@ -84,3 +87,48 @@ def test_packager_preserves_results_disclosures() -> None:
     assert b'"independently_reproduced": false' in files[ROOT / "results/paper_results.json"]
     assert b'"paper_reproduction": false' in files[ROOT / "results/training_results.json"]
     assert b'"kind": "synthetic_run"' in files[ROOT / "results/demo_results.json"]
+
+
+def test_packager_names_missing_required_files(tmp_path: Path) -> None:
+    root = fixture(tmp_path / "source")
+    (root / "results/paper_results.json").unlink()
+    with pytest.raises(ValueError, match="missing required files: results/paper_results.json"):
+        PACKAGER["review_files"](root)
+
+
+def test_clean_sdist_contains_review_files_and_builds_a_complete_wheel(tmp_path: Path) -> None:
+    pytest.importorskip("build", reason="install the dev extra for distribution checks")
+    pytest.importorskip("hatchling", reason="install the dev extra for distribution checks")
+    source = tmp_path / "source"
+    files = PACKAGER["review_files"](ROOT)
+    for path, payload in files.items():
+        target = source / path.relative_to(ROOT)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(payload)
+    # A clean export must work without Git metadata or stale setuptools manifests.
+    # Deliberately add local artifacts: neither distribution may publish them.
+    for name in ("runs/private.json", "results/private.json", "src/vapa/.env", "data/private.csv"):
+        target = source / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("private fixture", encoding="utf-8")
+    output = tmp_path / "dist"
+    completed = subprocess.run(
+        [sys.executable, "-m", "build", "--no-isolation", "--outdir", str(output), str(source)],
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    with tarfile.open(next(output.glob("*.tar.gz"))) as archive:
+        root = Path(archive.getnames()[0]).parts[0]
+        names = {
+            Path(entry.name).relative_to(root).as_posix() for entry in archive if entry.isfile()
+        }
+    expected = {path.relative_to(ROOT).as_posix() for path in files}
+    assert names == expected | {"PKG-INFO"}
+    with zipfile.ZipFile(next(output.glob("*.whl"))) as archive:
+        wheel_names = set(archive.namelist())
+        expected_package = {
+            name.removeprefix("src/") for name in expected if name.startswith("src/")
+        }
+        assert {name for name in wheel_names if name.startswith("vapa/")} == expected_package
+        assert all(name.startswith(("vapa/", "vapa_ehr-")) for name in wheel_names)

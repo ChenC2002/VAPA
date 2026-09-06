@@ -11,12 +11,16 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
 from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, TypeAlias
 
-from vapa.artifacts import artifact_fingerprint, strict_json_loads
+from vapa.artifacts import (
+    artifact_fingerprint,
+    fingerprint_file,
+    strict_json_loads,
+    strict_jsonl_loads,
+)
 
 JSONScalar: TypeAlias = None | bool | int | float | str
 JSONValue: TypeAlias = JSONScalar | list["JSONValue"] | dict[str, "JSONValue"]
@@ -30,17 +34,6 @@ class DataValidationError(ValueError):
 
 class IntegrityError(DataValidationError):
     """Raised when a file does not match its SHA-256 manifest."""
-
-
-def _validate_finite(value: Any, location: str = "$") -> None:
-    if isinstance(value, float) and not math.isfinite(value):
-        raise DataValidationError(f"non-finite number at {location}")
-    if isinstance(value, Mapping):
-        for key, item in value.items():
-            _validate_finite(item, f"{location}.{key}")
-    elif isinstance(value, list):
-        for index, item in enumerate(value):
-            _validate_finite(item, f"{location}[{index}]")
 
 
 def _loads_json(text: str, source: str) -> JSONValue:
@@ -76,20 +69,13 @@ def load_jsonl(path: str | Path) -> list[JSONValue]:
 
     input_path = Path(path)
     try:
-        text = input_path.read_text(encoding="utf-8")
+        text = input_path.read_bytes().decode("utf-8")
     except UnicodeDecodeError as error:
         raise DataValidationError(f"{input_path}: input is not valid UTF-8") from error
-    if not text:
-        raise DataValidationError(f"{input_path}: empty JSONL input")
-
-    values: list[JSONValue] = []
-    for line_number, line in enumerate(text.splitlines(), start=1):
-        if not line.strip():
-            raise DataValidationError(f"{input_path}:{line_number}: blank JSONL line")
-        values.append(_loads_json(line, f"{input_path}:{line_number}"))
-    if not values:
-        raise DataValidationError(f"{input_path}: empty JSONL input")
-    return values
+    try:
+        return strict_jsonl_loads(text, source=str(input_path))
+    except ValueError as error:
+        raise DataValidationError(str(error)) from error
 
 
 def _id_fields(id_field: IdField) -> tuple[str, ...]:
@@ -202,20 +188,16 @@ def sha256_bytes(data: bytes) -> str:
 def sha256_file(path: str | Path, *, chunk_size: int = 1024 * 1024) -> str:
     """Hash a file without loading it wholly into memory."""
 
-    if chunk_size <= 0:
-        raise ValueError("chunk_size must be positive")
-    digest = hashlib.sha256()
-    with Path(path).open("rb") as stream:
-        for chunk in iter(lambda: stream.read(chunk_size), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+    return fingerprint_file(path, chunk_size=chunk_size).sha256
 
 
 def sha256_json(value: JSONValue) -> str:
     """Hash canonical compact JSON with sorted object keys."""
 
-    _validate_finite(value)
-    return artifact_fingerprint(value)
+    try:
+        return artifact_fingerprint(value)
+    except (TypeError, ValueError) as error:
+        raise DataValidationError(str(error)) from error
 
 
 def build_sha256_manifest(

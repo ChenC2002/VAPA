@@ -66,6 +66,8 @@ class IntactActionGroup:
 
 @dataclass(frozen=True)
 class TrainStepReport:
+    """Update metrics; learning_rates are the rates used by this optimizer step."""
+
     objective: str
     loss: float
     policy_loss: float
@@ -395,10 +397,11 @@ def _finish_step(
     if not math.isfinite(gradient_norm):
         optimizer.zero_grad()
         raise FloatingPointError("gradient norm is non-finite; optimizer step was skipped")
+    learning_rates = _learning_rates(optimizer)
     optimizer.step()
     if scheduler is not None:
         scheduler.step()
-    return gradient_norm, _learning_rates(optimizer)
+    return gradient_norm, learning_rates
 
 
 def train_vapa_update(

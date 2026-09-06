@@ -314,6 +314,14 @@ def test_report_loader_refuses_mixed_axes(tmp_path: Path) -> None:
         load_experiment_records(path)
 
 
+def test_report_loader_preserves_unicode_in_record_identifiers(tmp_path: Path) -> None:
+    row = json.loads((ROOT / "examples/tiny_experiment_metrics.jsonl").read_text().splitlines()[0])
+    row["patient_id"] = "first\u0085second\u2028third\u2029last"
+    path = tmp_path / "unicode.jsonl"
+    path.write_text(json.dumps(row, ensure_ascii=False) + "\n", encoding="utf-8")
+    assert load_experiment_records(path)[0].patient_id == row["patient_id"]
+
+
 def test_report_only_adjusts_declared_confirmatory_tests(tmp_path: Path) -> None:
     result = analyze_experiments(
         ROOT / "examples/tiny_experiment_report_manifest.json",

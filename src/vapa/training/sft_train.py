@@ -25,6 +25,7 @@ from vapa.artifacts import (
     fingerprint_file,
     guard_artifact_write_path,
     strict_json_loads,
+    strict_jsonl_loads,
 )
 from vapa.model.protocols import (
     ActorModelAdapter,
@@ -331,7 +332,7 @@ def load_sft_demonstrations(path: str | Path) -> tuple[SFTExample, ...]:
 
     source = Path(path)
     try:
-        content = source.read_text(encoding="utf-8")
+        content = source.read_bytes().decode("utf-8")
     except UnicodeDecodeError as error:
         raise SFTDataError(f"{source}: demonstration data must be UTF-8") from error
     return parse_sft_demonstrations(content, source=str(source))
@@ -342,18 +343,14 @@ def parse_sft_demonstrations(
 ) -> tuple[SFTExample, ...]:
     """Validate demonstration bytes before a generator publishes them."""
 
-    if not content:
-        raise SFTDataError(f"{source}: demonstration file is empty")
+    try:
+        records = strict_jsonl_loads(content, source=source)
+    except ValueError as error:
+        raise SFTDataError(str(error)) from error
     examples: list[SFTExample] = []
     allowed_roles = {"system", "developer", "user", "assistant", "tool"}
-    for line_number, line in enumerate(content.splitlines(), start=1):
+    for line_number, raw in enumerate(records, start=1):
         location = f"{source}:{line_number}"
-        if not line.strip():
-            raise SFTDataError(f"{location}: blank JSONL records are not allowed")
-        try:
-            raw = strict_json_loads(line)
-        except (TypeError, ValueError) as error:
-            raise SFTDataError(f"{location}: invalid strict JSON: {error}") from error
         if not isinstance(raw, Mapping):
             raise SFTDataError(f"{location}: each record must be a JSON object")
         expected = {"messages", "action", "group"}
@@ -390,8 +387,6 @@ def parse_sft_demonstrations(
         except (ActionParseError, KeyError, TypeError, ValueError) as error:
             raise SFTDataError(f"{location}: invalid VAPA action: {error}") from error
         examples.append(SFTExample(tuple(messages), action, group))
-    if not examples:
-        raise SFTDataError(f"{source}: demonstration file contains no records")
     return tuple(examples)
 
 
@@ -734,10 +729,10 @@ def _read_jsonl(path: Path) -> list[dict[str, object]]:
     if not path.exists():
         return []
     records: list[dict[str, object]] = []
-    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-        if not line:
-            raise ValueError(f"{path}:{line_number}: blank metrics record")
-        raw = strict_json_loads(line)
+    raw_records = strict_jsonl_loads(
+        path.read_bytes().decode("utf-8"), source=str(path), allow_empty=True
+    )
+    for line_number, raw in enumerate(raw_records, start=1):
         if not isinstance(raw, dict):
             raise ValueError(f"{path}:{line_number}: metrics record must be an object")
         records.append(raw)

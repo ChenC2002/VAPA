@@ -233,7 +233,7 @@ def _parse_value(text: str) -> Any:
 def parse_action(output: str) -> Action:
     """Parse only the final non-empty line, enforcing the model surface contract."""
 
-    lines = [line.strip() for line in output.splitlines() if line.strip()]
+    lines = [line.strip() for line in output.split("\n") if line.strip()]
     if not lines:
         raise ActionParseError("empty model output")
     action_prefix = re.compile(

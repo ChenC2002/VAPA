@@ -318,6 +318,23 @@ def test_dependency_light_vapa_and_action_sft_end_to_end():
     assert optimizer.steps == 2
 
 
+@pytest.mark.parametrize("objective", ["sft", "vapa"])
+def test_training_metrics_record_the_applied_learning_rate(objective: str):
+    actor = FakeModel(0.5)
+    optimizer = FakeOptimizer(actor, learning_rate=0.1)
+    scheduler = WarmupCosineScheduler(optimizer, total_steps=4, warmup_steps=2)
+    applied = tuple(group["lr"] for group in optimizer.param_groups)
+    kwargs = dict(tokenizer=FakeTokenizer(), actor=actor, optimizer=optimizer, scheduler=scheduler)
+    if objective == "sft":
+        report = train_sft_step(
+            (SFTExample(({"role": "user", "content": "prompt"},), "AB"),), **kwargs
+        )
+    else:
+        report = train_vapa_update(_update(), reference=FakeModel(0.25, "reference"), **kwargs)
+    assert report.learning_rates == applied == (0.05,)
+    assert optimizer.param_groups[0]["lr"] == 0.1
+
+
 def test_checkpoint_round_trip_verifies_contract_and_integrity(tmp_path: Path):
     model = FakeModel(0.75)
     reference = FakeModel(0.25, "reference")

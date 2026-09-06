@@ -193,7 +193,7 @@ class StateManager:
                 raise RuntimeError("episode has already terminated") from exc
             malformed_answer = any(
                 re.match(r"(?i)^answer\s*\(", line.strip()) is not None
-                for line in model_output.splitlines()
+                for line in model_output.split("\n")
             )
             terminate = malformed_answer or self._budget == 0 or self._turn >= self.turn_cap
             return self._consume_rejection(None, str(exc), terminate=terminate)

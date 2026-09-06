@@ -97,6 +97,20 @@ def test_strict_episode_and_event_loading(tmp_path):
     ]
 
 
+def test_event_loader_preserves_unicode_record_text(tmp_path):
+    path = tmp_path / "events.jsonl"
+    record = {"event_id": "event-1", "text": "first\u0085second\u2028third\u2029last"}
+    path.write_text(json.dumps(record, ensure_ascii=False) + "\n", encoding="utf-8")
+    assert load_events(path) == [record]
+
+
+def test_event_loader_does_not_rewrite_bare_carriage_returns(tmp_path):
+    path = tmp_path / "events.jsonl"
+    path.write_bytes(b'{"event_id":"a"}\r{"event_id":"b"}')
+    with pytest.raises(DataValidationError, match="invalid strict JSON"):
+        load_events(path)
+
+
 def test_episode_object_loader_accepts_the_documented_episode_id_alias(tmp_path):
     path = tmp_path / "episodes.json"
     record = {

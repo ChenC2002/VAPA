@@ -10,7 +10,7 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-ROOT_FILES = frozenset({"README.md", "pyproject.toml", "MANIFEST.in", ".gitignore"})
+ROOT_FILES = frozenset({"README.md", "pyproject.toml", ".gitignore"})
 PUBLIC_DIRECTORIES = frozenset({".github", "configs", "examples", "scripts", "src", "tests"})
 SNAPSHOTS = frozenset(
     f"{directory}/{name}_results.{extension}"
@@ -71,8 +71,9 @@ def review_files(root: Path, *, deny_text: tuple[str, ...] = ()) -> dict[Path, b
             raise ValueError(f"denied identifier in {relative}; review before publishing")
         selected[path] = payload
     inventory = {path.relative_to(root).as_posix() for path in selected}
-    if not (ROOT_FILES | SNAPSHOTS).issubset(inventory):
-        raise ValueError("review package is missing required source or result files")
+    missing = sorted((ROOT_FILES | SNAPSHOTS) - inventory)
+    if missing:
+        raise ValueError(f"review package is missing required files: {', '.join(missing)}")
     return selected
 
 

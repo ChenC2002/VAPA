@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
 
 [project]
 name = "vapa-ehr"
@@ -32,7 +32,7 @@ train = [
 # Preparation and statistical analysis use the standard library.
 data = []
 eval = []
-dev = ["build>=1.2", "pytest>=8.3", "pytest-cov>=6", "ruff>=0.9"]
+dev = ["build>=1.2", "hatchling>=1.27", "pytest>=8.3", "pytest-cov>=6", "ruff>=0.9"]
 all = ["vapa-ehr[train,dev]"]
 
 [project.scripts]
@@ -43,19 +43,25 @@ vapa-generate-sft = "vapa.training.demonstrations:main"
 vapa-train = "vapa.training.rl_train:main"
 vapa-train-sft = "vapa.training.sft_train:main"
 
-[tool.setuptools]
-package-dir = { "" = "src" }
+[tool.hatch.build.targets.wheel]
+packages = ["src/vapa"]
 
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.setuptools.package-data]
-"vapa.releases.public_core_v1" = [
+[tool.hatch.build.targets.sdist]
+only-include = [
   "README.md",
-  "manifest.json",
-  "release.json",
-  "prompts/*.txt",
-  "schemas/*.json",
+  "pyproject.toml",
+  ".gitignore",
+  "configs",
+  "examples",
+  "scripts",
+  "src/vapa",
+  "tests",
+  "results/demo_results.json",
+  "results/paper_results.json",
+  "results/training_results.json",
+  "logs/demo_results.jsonl",
+  "logs/paper_results.jsonl",
+  "logs/training_results.jsonl",
 ]
 
 [tool.pytest.ini_options]

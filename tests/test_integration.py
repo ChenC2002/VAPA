@@ -35,6 +35,18 @@ from vapa.verifiers import VerifierCatalog
 ROOT = Path(__file__).resolve().parents[1]
 
 
+@pytest.mark.parametrize("value", [True, False, 0.5, float("nan"), float("inf")])
+def test_token_accounting_rejects_non_integer_counts(value: object) -> None:
+    with pytest.raises(ValueError, match="positive integer"):
+        GroupCharge("group", value, 0)
+    with pytest.raises(ValueError, match="integer within"):
+        GroupCharge("group", 3, value)
+    with pytest.raises(ValueError, match="positive integers"):
+        TokenLedger(target_tokens=value, update_floor=2)
+    with pytest.raises(ValueError, match="positive integers"):
+        TokenLedger(target_tokens=10, update_floor=value)
+
+
 def test_installed_training_plan_does_not_depend_on_working_directory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

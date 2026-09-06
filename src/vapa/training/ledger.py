@@ -13,10 +13,15 @@ class GroupCharge:
     include_in_loss: bool = True
 
     def __post_init__(self) -> None:
-        if self.sampled_tokens <= 0:
-            raise ValueError("a group charge must contain sampled tokens")
-        if not 0 <= self.trainable_tokens <= self.sampled_tokens:
-            raise ValueError("trainable tokens must be within sampled tokens")
+        if not isinstance(self.group_id, str) or not self.group_id.strip():
+            raise ValueError("a group charge requires a non-empty group ID")
+        if type(self.sampled_tokens) is not int or self.sampled_tokens <= 0:
+            raise ValueError("sampled tokens must be a positive integer")
+        if (
+            type(self.trainable_tokens) is not int
+            or not 0 <= self.trainable_tokens <= self.sampled_tokens
+        ):
+            raise ValueError("trainable tokens must be an integer within sampled tokens")
         if not isinstance(self.include_in_loss, bool):
             raise TypeError("include_in_loss must be a boolean")
 
@@ -79,8 +84,11 @@ class TokenLedger:
     _current_tokens: int = 0
 
     def __post_init__(self) -> None:
-        if min(self.target_tokens, self.update_floor) <= 0:
-            raise ValueError("ledger limits must be positive")
+        if any(
+            type(value) is not int or value <= 0
+            for value in (self.target_tokens, self.update_floor)
+        ):
+            raise ValueError("ledger limits must be positive integers")
         if not isinstance(self.permit_post_target, bool):
             raise TypeError("permit_post_target must be a boolean")
 

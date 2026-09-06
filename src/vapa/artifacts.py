@@ -8,6 +8,7 @@ credentialed artifact is safe to publish from its contents.
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import math
 import os
@@ -66,6 +67,29 @@ def strict_json_loads(payload: str | bytes | bytearray) -> Any:
         parse_constant=_reject_json_constant,
         parse_float=_parse_finite_json_float,
     )
+
+
+def strict_jsonl_loads(
+    payload: str, *, source: str = "<jsonl>", allow_empty: bool = False
+) -> list[Any]:
+    """Parse LF/CRLF-delimited JSON without splitting Unicode inside strings.
+
+    Preserve physical line numbers and reject blank records. A single final
+    newline is optional; an empty journal is allowed only when requested.
+    """
+
+    if not payload and not allow_empty:
+        raise ValueError(f"{source}: empty JSONL input")
+    records = []
+    for line_number, line in enumerate(io.StringIO(payload), start=1):
+        location = f"{source}:{line_number}"
+        if not line.strip():
+            raise ValueError(f"{location}: blank JSONL line")
+        try:
+            records.append(strict_json_loads(line))
+        except ValueError as error:
+            raise ValueError(f"{location}: invalid strict JSON: {error}") from error
+    return records
 
 
 def _validate_json_value(value: Any, location: str = "$") -> None:
@@ -150,13 +174,15 @@ class ArtifactFingerprint:
         return cls(sha256=value["sha256"], size_bytes=value["size_bytes"])
 
 
-def fingerprint_file(path: str | Path) -> ArtifactFingerprint:
+def fingerprint_file(path: str | Path, *, chunk_size: int = 1024 * 1024) -> ArtifactFingerprint:
     """Hash a file in bounded-memory chunks and record its exact byte length."""
 
+    if type(chunk_size) is not int or chunk_size <= 0:
+        raise ValueError("chunk_size must be a positive integer")
     digest = hashlib.sha256()
     size_bytes = 0
     with Path(path).open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+        for chunk in iter(lambda: stream.read(chunk_size), b""):
             digest.update(chunk)
             size_bytes += len(chunk)
     return ArtifactFingerprint(sha256=digest.hexdigest(), size_bytes=size_bytes)
@@ -477,6 +503,7 @@ __all__ = [
     "repository_root_for_output",
     "save_manifest",
     "strict_json_loads",
+    "strict_jsonl_loads",
     "validate_checkpoint_contract",
     "validate_output_paths",
 ]

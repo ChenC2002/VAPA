@@ -91,7 +91,9 @@ Calculate(bmi, {"weight_kg":{"pointer":"e#1"},"height_m":["e#2","fallback, (x)"]
         parse_action('Calculate(bmi, {"weight": ["e#1"})')
 
 
-@pytest.mark.parametrize("value", ["true", "false", "null", "none", "1", "-2.5", "1e3"])
+@pytest.mark.parametrize(
+    "value", ["true", "false", "null", "none", "1", "-2.5", "1e3", "a\u0085b\u2028c\u2029d"]
+)
 def test_action_parser_and_formatter_preserve_keyword_and_numeric_strings(value: str):
     action = parse_action(f"Answer({json.dumps(value)}, [])")
 

@@ -219,6 +219,21 @@ def test_strict_jsonl_loader_and_diagnostics(tmp_path: Path):
             load_sft_demonstrations(path)
 
 
+def test_demonstrations_preserve_unicode_in_prompts_and_actions(tmp_path: Path):
+    text = "first\u0085second\u2028third\u2029last"
+    action = f"Answer({json.dumps(text, ensure_ascii=False)}, [])"
+    record = {
+        "messages": [{"role": "user", "content": text}],
+        "action": action,
+        "group": "unicode",
+    }
+    path = tmp_path / "unicode.jsonl"
+    path.write_text(json.dumps(record, ensure_ascii=False) + "\n", encoding="utf-8")
+    (example,) = load_sft_demonstrations(path)
+    assert example.messages[0]["content"] == text
+    assert example.action_text == action
+
+
 def test_schedule_is_deterministic_and_never_splits_a_group(tmp_path: Path):
     examples = load_sft_demonstrations(_write_data(tmp_path / "data.jsonl"))
     tokenizer = FakeTokenizer()

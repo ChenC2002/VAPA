@@ -27,6 +27,7 @@ from vapa.artifacts import (
     fingerprint_file,
     guard_artifact_write_path,
     strict_json_loads,
+    strict_jsonl_loads,
     validate_output_paths,
 )
 from vapa.evaluation.statistics import (
@@ -90,11 +91,13 @@ def _strict_fields(value: Mapping[str, Any], expected: set[str], location: str) 
 def load_experiment_records(path: str | Path) -> tuple[ExperimentMetricRecord, ...]:
     source = Path(path)
     try:
-        content = source.read_text(encoding="utf-8")
+        content = source.read_bytes().decode("utf-8")
     except UnicodeDecodeError as error:
         raise ExperimentReportError("experiment records must be UTF-8") from error
-    if not content:
-        raise ExperimentReportError("experiment record file is empty")
+    try:
+        records = strict_jsonl_loads(content, source=str(source))
+    except ValueError as error:
+        raise ExperimentReportError(str(error)) from error
     rows: list[ExperimentMetricRecord] = []
     seen: set[tuple[object, ...]] = set()
     expected = {
@@ -107,13 +110,7 @@ def load_experiment_records(path: str | Path) -> tuple[ExperimentMetricRecord, .
         "value",
         "profile",
     }
-    for line_number, line in enumerate(content.splitlines(), start=1):
-        if not line.strip():
-            raise ExperimentReportError(f"{source}:{line_number}: blank rows are not allowed")
-        try:
-            raw = strict_json_loads(line)
-        except (TypeError, ValueError) as error:
-            raise ExperimentReportError(f"{source}:{line_number}: {error}") from error
+    for line_number, raw in enumerate(records, start=1):
         if not isinstance(raw, Mapping):
             raise ExperimentReportError(f"{source}:{line_number}: row must be an object")
         axes = set(raw) & {"horizon_days", "decision_depth"}

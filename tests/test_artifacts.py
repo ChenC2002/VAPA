@@ -23,6 +23,7 @@ from vapa.artifacts import (
     load_manifest,
     save_manifest,
     strict_json_loads,
+    strict_jsonl_loads,
     validate_checkpoint_contract,
     validate_output_paths,
 )
@@ -66,6 +67,32 @@ def test_strict_json_rejects_nonfinite_numbers_and_duplicate_keys(payload: str) 
         strict_json_loads(payload)
 
 
+@pytest.mark.parametrize("separator", ["\u0085", "\u2028", "\u2029"])
+@pytest.mark.parametrize("ending", ["", "\n", "\r\n"])
+def test_jsonl_preserves_unicode_inside_records(separator: str, ending: str) -> None:
+    record = {"text": f"before{separator}after"}
+    encoded = canonical_json_dumps(record)
+    assert strict_jsonl_loads(encoded + "\r\n" + encoded + ending) == [record, record]
+
+
+@pytest.mark.parametrize("payload", ["\n", "{}\n\n", '{}\n{"x":1,"x":2}', "{}\nNaN"])
+def test_jsonl_rejects_corrupt_records_with_physical_line_numbers(payload: str) -> None:
+    line = 1 if payload == "\n" else 2
+    with pytest.raises(ValueError, match=f"records.jsonl:{line}:"):
+        strict_jsonl_loads(payload, source="records.jsonl")
+
+
+def test_jsonl_empty_input_requires_explicit_permission() -> None:
+    with pytest.raises(ValueError, match="empty JSONL"):
+        strict_jsonl_loads("")
+    assert strict_jsonl_loads("", allow_empty=True) == []
+
+
+def test_jsonl_does_not_accept_a_bare_carriage_return_as_a_record_separator() -> None:
+    with pytest.raises(ValueError, match="invalid strict JSON"):
+        strict_jsonl_loads("{}\r{}")
+
+
 @pytest.mark.parametrize("value", [float("nan"), float("inf"), -float("inf")])
 def test_canonical_json_rejects_nonfinite_values(value: float) -> None:
     with pytest.raises(ValueError, match="NaN or Infinity"):
@@ -89,6 +116,13 @@ def test_file_fingerprint_records_digest_and_exact_size(tmp_path: Path) -> None:
         sha256=expected,
         size_bytes=4,
     )
+    assert fingerprint_file(artifact, chunk_size=1) == fingerprint_file(artifact)
+
+
+@pytest.mark.parametrize("chunk_size", [0, -1, True, 1.5])
+def test_file_fingerprint_rejects_invalid_chunk_sizes(tmp_path: Path, chunk_size: object) -> None:
+    with pytest.raises(ValueError, match="positive integer"):
+        fingerprint_file(tmp_path / "unused", chunk_size=chunk_size)
 
 
 def test_atomic_publication_preserves_existing_file_and_removes_temporary(tmp_path: Path) -> None:

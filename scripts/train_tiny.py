@@ -28,6 +28,7 @@ from vapa.artifacts import (  # noqa: E402
     strict_json_loads,
     validate_output_paths,
 )
+from vapa.data.io import load_jsonl  # noqa: E402
 
 
 def validate_results(result: dict, events: list[dict]) -> None:
@@ -176,13 +177,8 @@ def run(output: Path, *, seed: int = 7, steps: int = 16) -> tuple[dict, list[dic
     resume_equal = all(
         torch.equal(value, complete.actor_state[key]) for key, value in loaded.actor_state.items()
     )
-    metrics = [
-        strict_json_loads(line) for line in (output / "sft/metrics.jsonl").read_text().splitlines()
-    ]
-    comparison_metrics = [
-        strict_json_loads(line)
-        for line in (output / "sft-uninterrupted/metrics.jsonl").read_text().splitlines()
-    ]
+    metrics = load_jsonl(output / "sft/metrics.jsonl")
+    comparison_metrics = load_jsonl(output / "sft-uninterrupted/metrics.jsonl")
     resume_equal = resume_equal and metrics == comparison_metrics
 
     # Exercise the actual differentiable shared-backbone VAPA objective on a fixed
@@ -350,10 +346,7 @@ def main() -> int:
         if args.publish or args.output:
             parser.error("--check cannot be combined with training options")
         result = strict_json_loads((ROOT / "results/training_results.json").read_bytes())
-        trace = [
-            strict_json_loads(line)
-            for line in (ROOT / "logs/training_results.jsonl").read_text().splitlines()
-        ]
+        trace = load_jsonl(ROOT / "logs/training_results.jsonl")
         validate_results(result, trace)
         print("validated measured tiny-training summary and optimizer trace")
         return 0
