@@ -414,7 +414,7 @@ def train_vapa_update(
     scheduler: SchedulerAdapter | None = None,
     kl_weight: float = 0.01,
     ratio_clip: float | None = None,
-    kl_mode: str = "k3",
+    kl_mode: str = "forward",
     gradient_clip: float = 1.0,
     scaffold: str = "",
 ) -> TrainStepReport:

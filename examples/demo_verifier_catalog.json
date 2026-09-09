@@ -2,7 +2,7 @@
   "schema_version": 1,
   "catalog_id": "demo-v1-not-paper-exact",
   "paper_exact": false,
-  "warning": "The paper does not publish the complete predicate list or numerical weights.",
+  "warning": "The fourteen-predicate companion specification is not bundled; this is a seven-predicate demo catalog.",
   "weights": {
     "exact": 2.0,
     "heuristic": 1.0

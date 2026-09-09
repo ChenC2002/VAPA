@@ -2,13 +2,13 @@
   "schema_version": "vapa-paper-results-v1",
   "project": "VAPA",
   "paper_title": "Where Credit Lands: Step-Level Advantages for Bounded-Memory EHR Agents",
-  "source_version": "manuscript-review-v1",
+  "source_version": "manuscript-review-v2",
   "kind": "paper_reported",
   "independently_reproduced": false,
   "sources": {
-    "Tex/experiments.tex": "4ac3fb1e8dbe7dff244d36c47665ba00dab7d41a8b42b89214d6f60e415ff833",
-    "Tex/appendix.tex": "7dc25363ed73929aba47308ff7eb20486d7db79363c605a664bbccc9440a5b3e"
+    "manuscript.pdf": "5689aed86890a80516fd5e4d6462a4c73caa0fb2f8471da68397b58750340dc7"
   },
+  "transcription_method": "visually_reviewed_pdf_cells",
   "coverage": {
     "included_tables": [
       "tab:main",
@@ -16,7 +16,6 @@
       "tab:replay-effects",
       "tab:grouping-coverage",
       "tab:compute-efficiency",
-      "tab:compute-ledger",
       "tab:compute-budget",
       "tab:interaction-tests",
       "tab:baseline-contrasts",
@@ -26,19 +25,20 @@
     "excluded": [
       "Other appendix tables and narrative-only values",
       "Plot-only learning curves and diagnostics: original numeric arrays unavailable",
-      "Commented-out draft scaffolds and unfinished experiments",
+      "Superseded compute-ledger table from the previous manuscript version",
       "Per-seed observations, raw optimizer traces, and checkpoints: not supplied"
     ]
   },
   "caveats": [
-    "Draft manuscript transcription, not empirical verification or a run of this repository.",
+    "Reviewed PDF transcription, not empirical verification or a run of this repository.",
     "Printed paired contrasts use unrounded per-seed values; subtracting rounded means can differ by 0.01 points.",
     "Fixed-system uncertainties are bootstrap standard errors; trained-system uncertainties are sample standard deviations, not interchangeable.",
     "Compute accounting mixes directly reported measurements and reconstructed accounting; underlying per-run compute artifacts were not supplied.",
+    "Qwen factorial throughput entries are additive-model estimates. Compute Table 14 separates reproduction allowance from search and screening.",
     "Reported significance is transcribed, not recomputed from unavailable per-seed data."
   ],
-  "record_count": 104,
-  "records_sha256": "5c0f46bacc9dbcac7ffc2722b7591d0dc0d93bb8bddbb3712bd12f7650bdec43",
+  "record_count": 100,
+  "records_sha256": "504942bb73346c8a2288d0d695ef49deb1eec0d4b8bede4f4ad8ba99d41467cd",
   "records": [
     {
       "id": "main.01",
@@ -94,9 +94,19 @@
         }
       ],
       "source": {
-        "path": "Tex/experiments.tex",
-        "line": 42,
-        "row_tex": "\\multirow{3}{*}{\\shortstack[l]{Internal\\\\controls}} & Direct context & \\result{75.19}{1.12} & \\result{50.30}{0.94} & \\result{16.00}{3.24} & \\result{16.00}{3.24} & \\result{36.22}{0.68} & \\result{65.94}{0.56} \\\\"
+        "label": "Direct context",
+        "cells": [
+          "75.19±1.12",
+          "50.30±0.94",
+          "16.00±3.24",
+          "16.00±3.24",
+          "36.22±0.68",
+          "65.94±0.56"
+        ],
+        "path": "manuscript.pdf",
+        "page": 6,
+        "table": 1,
+        "row": 1
       }
     },
     {
@@ -153,9 +163,19 @@
         }
       ],
       "source": {
-        "path": "Tex/experiments.tex",
-        "line": 43,
-        "row_tex": "& Always retrieve & \\result{78.08}{1.03} & \\result{68.57}{0.84} & \\result{29.33}{4.12} & \\result{18.72}{2.48} & \\result{38.30}{0.74} & \\result{67.81}{0.58} \\\\"
+        "label": "Always retrieve",
+        "cells": [
+          "78.08±1.03",
+          "68.57±0.84",
+          "29.33±4.12",
+          "18.72±2.48",
+          "38.30±0.74",
+          "67.81±0.58"
+        ],
+        "path": "manuscript.pdf",
+        "page": 6,
+        "table": 1,
+        "row": 2
       }
     },
     {
@@ -186,14 +206,14 @@
           "name": "medagentbench_task_success",
           "unit": "percent",
           "value": 24.67,
-          "uncertainty": 3.78,
+          "uncertainty": 3.64,
           "uncertainty_type": "patient_clustered_bootstrap_standard_error"
         },
         {
           "name": "medagentbench_cost_normalized_success",
           "unit": "percent",
-          "value": 19.91,
-          "uncertainty": 3.05,
+          "value": 19.89,
+          "uncertainty": 2.95,
           "uncertainty_type": "patient_clustered_bootstrap_standard_error"
         },
         {
@@ -212,9 +232,19 @@
         }
       ],
       "source": {
-        "path": "Tex/experiments.tex",
-        "line": 44,
-        "row_tex": "& SFT only & \\result{77.56}{1.03} & \\result{62.37}{0.90} & \\result{24.67}{3.78} & \\result{19.91}{3.05} & \\result{36.95}{0.70} & \\result{67.18}{0.57} \\\\"
+        "label": "SFT only",
+        "cells": [
+          "77.56±1.03",
+          "62.37±0.90",
+          "24.67±3.64",
+          "19.89±2.95",
+          "36.95±0.70",
+          "67.18±0.57"
+        ],
+        "path": "manuscript.pdf",
+        "page": 6,
+        "table": 1,
+        "row": 3
       }
     },
     {
@@ -271,9 +301,19 @@
         }
       ],
       "source": {
-        "path": "Tex/experiments.tex",
-        "line": 46,
-        "row_tex": "\\multirow{2}{*}{\\shortstack[l]{Reference\\\\agents}} & ReAct \\citeyearpar{yao2022react} & \\result{77.05}{1.10} & \\result{65.83}{0.83} & \\result{22.00}{3.64} & \\result{18.17}{3.11} & \\result{36.39}{0.68} & \\result{66.51}{0.57} \\\\"
+        "label": "ReAct",
+        "cells": [
+          "77.05±1.10",
+          "65.83±0.83",
+          "22.00±3.64",
+          "18.17±3.11",
+          "36.39±0.68",
+          "66.51±0.57"
+        ],
+        "path": "manuscript.pdf",
+        "page": 6,
+        "table": 1,
+        "row": 4
       }
     },
     {
@@ -330,9 +370,19 @@
         }
       ],
       "source": {
-        "path": "Tex/experiments.tex",
-        "line": 47,
-        "row_tex": "& Reflexion \\citeyearpar{shinn2023reflexion} & \\result{78.59}{1.07} & \\result{67.73}{0.85} & \\result{28.67}{3.80} & \\result{23.78}{3.18} & \\result{37.83}{0.72} & \\result{68.02}{0.58} \\\\"
+        "label": "Reflexion",
+        "cells": [
+          "78.59±1.07",
+          "67.73±0.85",
+          "28.67±3.80",
+          "23.78±3.18",
+          "37.83±0.72",
+          "68.02±0.58"
+        ],
+        "path": "manuscript.pdf",
+        "page": 6,
+        "table": 1,
+        "row": 5
       }
     },
     {
@@ -389,9 +439,19 @@
         }
       ],
       "source": {
-        "path": "Tex/experiments.tex",
-        "line": 49,
-        "row_tex": "\\multirow{2}{*}{\\shortstack[l]{Inference\\\\controls}} & Self-consistency \\citeyearpar{wang2023selfconsistency} & \\result{78.72}{1.06} & \\result{64.70}{0.89} & \\result{26.67}{3.73} & \\result{16.44}{2.44} & \\result{37.94}{0.73} & \\result{67.72}{0.58} \\\\"
+        "label": "Self-consistency",
+        "cells": [
+          "78.72±1.06",
+          "64.70±0.89",
+          "26.67±3.73",
+          "16.44±2.44",
+          "37.94±0.73",
+          "67.72±0.58"
+        ],
+        "path": "manuscript.pdf",
+        "page": 6,
+        "table": 1,
+        "row": 6
       }
     },
     {
@@ -444,9 +504,19 @@
         }
       ],
       "source": {
-        "path": "Tex/experiments.tex",
-        "line": 50,
-        "row_tex": "& Oracle best-of-$N$ \\citeyearpar{cobbe2021training} & \\result{85.32}{0.87} & \\result{84.53}{0.68} & -- & -- & -- & -- \\\\"
+        "label": "Oracle best-of-N",
+        "cells": [
+          "85.32±0.87",
+          "84.53±0.68",
+          "--",
+          "--",
+          "--",
+          "--"
+        ],
+        "path": "manuscript.pdf",
+        "page": 6,
+        "table": 1,
+        "row": 7
       }
     },
     {
@@ -503,9 +573,19 @@
         }
       ],
       "source": {
-        "path": "Tex/experiments.tex",
-        "line": 52,
-        "row_tex": "\\multirow{5}{*}{RL methods} & GRPO \\citeyearpar{shao2024deepseekmath} & \\result{79.49}{1.54} & \\result{70.21}{0.68} & \\result{32.53}{3.93} & \\result{24.91}{2.98} & \\result{38.53}{0.36} & \\result{68.42}{0.39} \\\\"
+        "label": "GRPO",
+        "cells": [
+          "79.49±1.54",
+          "70.21±0.68",
+          "32.53±3.93",
+          "24.91±2.98",
+          "38.53±0.36",
+          "68.42±0.39"
+        ],
+        "path": "manuscript.pdf",
+        "page": 6,
+        "table": 1,
+        "row": 8
       }
     },
     {
@@ -536,7 +616,7 @@
           "name": "medagentbench_task_success",
           "unit": "percent",
           "value": 36.13,
-          "uncertainty": 2.71,
+          "uncertainty": 2.72,
           "uncertainty_type": "across_run_sample_standard_deviation"
         },
         {
@@ -562,9 +642,19 @@
         }
       ],
       "source": {
-        "path": "Tex/experiments.tex",
-        "line": 53,
-        "row_tex": "& GiGPO \\citeyearpar{feng2025groupingroup} & \\result{80.94}{1.48} & \\result{73.66}{0.71} & \\result{36.13}{2.71} & \\result{28.87}{2.52} & \\result{38.97}{0.41} & \\result{69.70}{0.38} \\\\"
+        "label": "GiGPO",
+        "cells": [
+          "80.94±1.48",
+          "73.66±0.71",
+          "36.13±2.72",
+          "28.87±2.52",
+          "38.97±0.41",
+          "69.70±0.38"
+        ],
+        "path": "manuscript.pdf",
+        "page": 6,
+        "table": 1,
+        "row": 9
       }
     },
     {
@@ -595,7 +685,7 @@
           "name": "medagentbench_task_success",
           "unit": "percent",
           "value": 39.2,
-          "uncertainty": 2.54,
+          "uncertainty": 2.56,
           "uncertainty_type": "across_run_sample_standard_deviation"
         },
         {
@@ -621,9 +711,19 @@
         }
       ],
       "source": {
-        "path": "Tex/experiments.tex",
-        "line": 54,
-        "row_tex": "& Adapted VinePPO \\citeyearpar{kazemnejad2025vineppo} & \\result{81.42}{1.36} & \\result{75.12}{0.68} & \\result{39.20}{2.54} & \\result{31.96}{2.29} & \\result{40.42}{0.43} & \\result{70.86}{0.36} \\\\"
+        "label": "Adapted VinePPO",
+        "cells": [
+          "81.42±1.36",
+          "75.12±0.68",
+          "39.20±2.56",
+          "31.96±2.29",
+          "40.42±0.43",
+          "70.86±0.36"
+        ],
+        "path": "manuscript.pdf",
+        "page": 6,
+        "table": 1,
+        "row": 10
       }
     },
     {
@@ -639,7 +739,7 @@
         {
           "name": "calculation_verified_accuracy",
           "unit": "percent",
-          "value": 81.52,
+          "value": 81.53,
           "uncertainty": 1.44,
           "uncertainty_type": "across_run_sample_standard_deviation"
         },
@@ -680,9 +780,19 @@
         }
       ],
       "source": {
-        "path": "Tex/experiments.tex",
-        "line": 55,
-        "row_tex": "& Tree-GRPO \\citeyearpar{ji2026tree} & \\result{81.52}{1.44} & \\baselineresult{75.55}{0.79} & \\baselineresult{39.47}{2.68} & \\result{31.24}{2.71} & \\result{40.31}{0.42} & \\result{70.09}{0.35} \\\\"
+        "label": "Tree-GRPO",
+        "cells": [
+          "81.53±1.44",
+          "75.55±0.79",
+          "39.47±2.68",
+          "31.24±2.71",
+          "40.31±0.42",
+          "70.09±0.35"
+        ],
+        "path": "manuscript.pdf",
+        "page": 6,
+        "table": 1,
+        "row": 11
       }
     },
     {
@@ -713,7 +823,7 @@
           "name": "medagentbench_task_success",
           "unit": "percent",
           "value": 38.93,
-          "uncertainty": 2.31,
+          "uncertainty": 2.29,
           "uncertainty_type": "across_run_sample_standard_deviation"
         },
         {
@@ -739,13 +849,92 @@
         }
       ],
       "source": {
-        "path": "Tex/experiments.tex",
-        "line": 56,
-        "row_tex": "& Adapted VPR \\citeyearpar{yuan2026verifiable} & \\baselineresult{81.81}{1.39} & \\result{75.30}{0.64} & \\result{38.93}{2.31} & \\baselineresult{32.68}{2.14} & \\baselineresult{40.66}{0.41} & \\baselineresult{71.12}{0.34} \\\\"
+        "label": "Adapted VPR",
+        "cells": [
+          "81.81±1.39",
+          "75.30±0.64",
+          "38.93±2.29",
+          "32.68±2.14",
+          "40.66±0.41",
+          "71.12±0.34"
+        ],
+        "path": "manuscript.pdf",
+        "page": 6,
+        "table": 1,
+        "row": 12
       }
     },
     {
       "id": "main.13",
+      "table": "tab:main",
+      "kind": "paper_reported",
+      "dimensions": {
+        "label": "Tree-GRPO + process",
+        "backbone": "Qwen3.5-9B",
+        "n_seeds": 5
+      },
+      "metrics": [
+        {
+          "name": "calculation_verified_accuracy",
+          "unit": "percent",
+          "value": 82.18,
+          "uncertainty": 1.36,
+          "uncertainty_type": "across_run_sample_standard_deviation"
+        },
+        {
+          "name": "retrieval_grounded_exact_match",
+          "unit": "percent",
+          "value": 76.06,
+          "uncertainty": 0.8,
+          "uncertainty_type": "across_run_sample_standard_deviation"
+        },
+        {
+          "name": "medagentbench_task_success",
+          "unit": "percent",
+          "value": 40.53,
+          "uncertainty": 2.6,
+          "uncertainty_type": "across_run_sample_standard_deviation"
+        },
+        {
+          "name": "medagentbench_cost_normalized_success",
+          "unit": "percent",
+          "value": 33.48,
+          "uncertainty": 2.5,
+          "uncertainty_type": "across_run_sample_standard_deviation"
+        },
+        {
+          "name": "ehrshot_mean_auprc",
+          "unit": "percent",
+          "value": 41.08,
+          "uncertainty": 0.39,
+          "uncertainty_type": "across_run_sample_standard_deviation"
+        },
+        {
+          "name": "ehrshot_mean_auroc",
+          "unit": "percent",
+          "value": 71.22,
+          "uncertainty": 0.35,
+          "uncertainty_type": "across_run_sample_standard_deviation"
+        }
+      ],
+      "source": {
+        "label": "Tree-GRPO + process",
+        "cells": [
+          "82.18±1.36",
+          "76.06±0.80",
+          "40.53±2.60",
+          "33.48±2.50",
+          "41.08±0.39",
+          "71.22±0.35"
+        ],
+        "path": "manuscript.pdf",
+        "page": 6,
+        "table": 1,
+        "row": 13
+      }
+    },
+    {
+      "id": "main.14",
       "table": "tab:main",
       "kind": "paper_reported",
       "dimensions": {
@@ -798,13 +987,23 @@
         }
       ],
       "source": {
-        "path": "Tex/experiments.tex",
-        "line": 65,
-        "row_tex": "\\multirow{2}{*}{\\shortstack[l]{gpt-oss-20b\\\\\\citeyearpar{agarwal2025gpt}}} & GRPO \\citeyearpar{shao2024deepseekmath} & \\result{79.04}{1.79} & \\result{69.04}{0.71} & \\result{31.33}{4.06} & \\result{23.83}{5.95} & \\result{37.66}{0.67} & \\result{67.96}{0.69} \\\\"
+        "label": "GRPO",
+        "cells": [
+          "79.04±1.79",
+          "69.04±0.71",
+          "31.33±4.06",
+          "23.83±5.95",
+          "37.66±0.67",
+          "67.96±0.69"
+        ],
+        "path": "manuscript.pdf",
+        "page": 6,
+        "table": 1,
+        "row": 14
       }
     },
     {
-      "id": "main.14",
+      "id": "main.15",
       "table": "tab:main",
       "kind": "paper_reported",
       "dimensions": {
@@ -857,13 +1056,23 @@
         }
       ],
       "source": {
-        "path": "Tex/experiments.tex",
-        "line": 66,
-        "row_tex": "& \\modelname{} & \\result{81.94}{1.55} & \\result{76.02}{1.26} & \\result{40.67}{3.06} & \\result{34.46}{4.25} & \\result{41.01}{0.61} & \\result{71.08}{0.63} \\\\"
+        "label": "VAPA",
+        "cells": [
+          "81.94±1.55",
+          "76.02±1.26",
+          "40.67±3.06",
+          "34.46±4.25",
+          "41.01±0.61",
+          "71.08±0.63"
+        ],
+        "path": "manuscript.pdf",
+        "page": 6,
+        "table": 1,
+        "row": 15
       }
     },
     {
-      "id": "main.15",
+      "id": "main.16",
       "table": "tab:main",
       "kind": "paper_reported",
       "dimensions": {
@@ -919,9 +1128,19 @@
         }
       ],
       "source": {
-        "path": "Tex/experiments.tex",
-        "line": 69,
-        "row_tex": "Ours & \\modelname{} & \\bestresult{82.63}{1.31} & \\bestresult{78.03}{0.94}$^{\\ddagger}$ & \\bestresult{42.67}{3.46} & \\bestresult{36.08}{3.02} & \\bestresult{41.86}{0.33}$^{\\ddagger}$ & \\bestresult{71.84}{0.34}$^{\\ddagger}$ \\\\"
+        "label": "VAPA",
+        "cells": [
+          "82.63±1.31",
+          "78.03±0.94‡",
+          "42.67±3.46",
+          "36.08±3.02",
+          "41.86±0.33‡",
+          "71.84±0.34‡"
+        ],
+        "path": "manuscript.pdf",
+        "page": 6,
+        "table": 1,
+        "row": 16
       }
     },
     {
@@ -977,9 +1196,19 @@
         }
       ],
       "source": {
-        "path": "Tex/experiments.tex",
-        "line": 99,
-        "row_tex": "\\armone{} GRPO & No & No & \\result{79.49}{1.54} & \\result{70.21}{0.68} & \\result{32.53}{3.93} & \\result{24.91}{2.98} & \\result{38.53}{0.36} & \\result{68.42}{0.39} \\\\"
+        "label": "A1",
+        "cells": [
+          "79.49±1.54",
+          "70.21±0.68",
+          "32.53±3.93",
+          "24.91±2.98",
+          "38.53±0.36",
+          "68.42±0.39"
+        ],
+        "path": "manuscript.pdf",
+        "page": 7,
+        "table": 2,
+        "row": 1
       }
     },
     {
@@ -1035,9 +1264,19 @@
         }
       ],
       "source": {
-        "path": "Tex/experiments.tex",
-        "line": 100,
-        "row_tex": "\\armtwo{} Step & No & Yes & \\result{80.59}{1.47} & \\result{71.94}{1.01} & \\result{35.07}{3.90} & \\result{27.28}{2.62} & \\result{40.11}{0.50} & \\result{69.53}{0.27} \\\\"
+        "label": "A2",
+        "cells": [
+          "80.59±1.47",
+          "71.94±1.01",
+          "35.07±3.90",
+          "27.28±2.62",
+          "40.11±0.50",
+          "69.53±0.27"
+        ],
+        "path": "manuscript.pdf",
+        "page": 7,
+        "table": 2,
+        "row": 2
       }
     },
     {
@@ -1093,9 +1332,19 @@
         }
       ],
       "source": {
-        "path": "Tex/experiments.tex",
-        "line": 101,
-        "row_tex": "\\armthree{} Process & Yes & No & \\result{81.00}{1.51} & \\result{72.76}{0.96} & \\result{34.67}{3.80} & \\result{28.62}{2.46} & \\result{39.21}{0.57} & \\result{69.28}{0.46} \\\\"
+        "label": "A3",
+        "cells": [
+          "81.00±1.51",
+          "72.76±0.96",
+          "34.67±3.80",
+          "28.62±2.46",
+          "39.21±0.57",
+          "69.28±0.46"
+        ],
+        "path": "manuscript.pdf",
+        "page": 7,
+        "table": 2,
+        "row": 3
       }
     },
     {
@@ -1151,9 +1400,19 @@
         }
       ],
       "source": {
-        "path": "Tex/experiments.tex",
-        "line": 103,
-        "row_tex": "\\armfour{} \\modelname{} & Yes & Yes & \\bestresult{82.63}{1.31} & \\bestresult{78.03}{0.94} & \\bestresult{42.67}{3.46} & \\bestresult{36.08}{3.02} & \\bestresult{41.86}{0.33} & \\bestresult{71.84}{0.34} \\\\"
+        "label": "A4",
+        "cells": [
+          "82.63±1.31",
+          "78.03±0.94",
+          "42.67±3.46",
+          "36.08±3.02",
+          "41.86±0.33",
+          "71.84±0.34"
+        ],
+        "path": "manuscript.pdf",
+        "page": 7,
+        "table": 2,
+        "row": 4
       }
     },
     {
@@ -1209,9 +1468,19 @@
         }
       ],
       "source": {
-        "path": "Tex/experiments.tex",
-        "line": 105,
-        "row_tex": "\\multicolumn{3}{@{}l}{\\armfour{}\\(-\\)\\armone{} (pp)} & \\result{+3.14}{0.72} & \\result{+7.82}{0.28} & \\result{+10.13}{1.59} & \\result{+11.17}{0.58} & \\result{+3.33}{0.25} & \\result{+3.42}{0.24} \\\\"
+        "label": "A4−A1 (pp)",
+        "cells": [
+          "+3.14±0.72",
+          "+7.82±0.28",
+          "+10.13±1.59",
+          "+11.17±0.58",
+          "+3.33±0.25",
+          "+3.42±0.24"
+        ],
+        "path": "manuscript.pdf",
+        "page": 7,
+        "table": 2,
+        "row": 5
       }
     },
     {
@@ -1257,9 +1526,19 @@
         }
       ],
       "source": {
-        "path": "Tex/experiments.tex",
-        "line": 106,
-        "row_tex": "\\multicolumn{3}{@{}l}{Interaction $\\Delta_{\\mathrm{int}}$ (pp)} & $+0.53$ & $+3.53^{\\dagger}$ & $+5.47^{\\dagger}$ & $+5.09$ & $+1.07$ & $+1.45$ \\\\"
+        "label": "Interaction (pp)",
+        "cells": [
+          "+0.53",
+          "+3.53†",
+          "+5.47†",
+          "+5.09",
+          "+1.07",
+          "+1.45"
+        ],
+        "path": "manuscript.pdf",
+        "page": 7,
+        "table": 2,
+        "row": 6
       }
     },
     {
@@ -1294,9 +1573,16 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 400,
-        "row_tex": "Verified calculation accuracy & 80.59 & 78.28 & $+2.31$ [1.69, 2.93] \\\\"
+        "label": "Verified calculation accuracy",
+        "cells": [
+          "80.59",
+          "78.28",
+          "+2.31 [1.69, 2.93]"
+        ],
+        "path": "manuscript.pdf",
+        "page": 23,
+        "table": 11,
+        "row": 1
       }
     },
     {
@@ -1331,9 +1617,16 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 401,
-        "row_tex": "Grounded exact match & 71.94 & 70.32 & $+1.62$ [0.91, 2.33] \\\\"
+        "label": "Grounded exact match",
+        "cells": [
+          "71.94",
+          "70.32",
+          "+1.62 [0.91, 2.33]"
+        ],
+        "path": "manuscript.pdf",
+        "page": 23,
+        "table": 11,
+        "row": 2
       }
     },
     {
@@ -1368,9 +1661,16 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 402,
-        "row_tex": "MedAgent\\-Bench task success & 35.07 & 32.00 & $+3.07$ [1.79, 4.35] \\\\"
+        "label": "MedAgentBench task success",
+        "cells": [
+          "35.07",
+          "32.00",
+          "+3.07 [1.79, 4.35]"
+        ],
+        "path": "manuscript.pdf",
+        "page": 23,
+        "table": 11,
+        "row": 3
       }
     },
     {
@@ -1378,7 +1678,7 @@
       "table": "tab:replay-effects",
       "kind": "paper_reported",
       "dimensions": {
-        "label": "MedAgentBench cost-norm.\\ success",
+        "label": "MedAgentBench cost-norm. success",
         "arm": "A2",
         "n_seeds": 5
       },
@@ -1405,9 +1705,16 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 403,
-        "row_tex": "MedAgent\\-Bench cost-norm.\\ success & 27.28 & 23.07 & $+4.21$ [3.16, 5.26] \\\\"
+        "label": "MedAgentBench cost-norm. success",
+        "cells": [
+          "27.28",
+          "23.07",
+          "+4.21 [3.16, 5.26]"
+        ],
+        "path": "manuscript.pdf",
+        "page": 23,
+        "table": 11,
+        "row": 4
       }
     },
     {
@@ -1442,9 +1749,16 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 406,
-        "row_tex": "Verified calculation accuracy & 82.63 & 80.05 & $+2.58$ [2.00, 3.16] \\\\"
+        "label": "Verified calculation accuracy",
+        "cells": [
+          "82.63",
+          "80.05",
+          "+2.58 [2.00, 3.16]"
+        ],
+        "path": "manuscript.pdf",
+        "page": 23,
+        "table": 11,
+        "row": 5
       }
     },
     {
@@ -1479,9 +1793,16 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 407,
-        "row_tex": "Grounded exact match & 78.03 & 73.52 & $+4.51$ [3.85, 5.17] \\\\"
+        "label": "Grounded exact match",
+        "cells": [
+          "78.03",
+          "73.52",
+          "+4.51 [3.85, 5.17]"
+        ],
+        "path": "manuscript.pdf",
+        "page": 23,
+        "table": 11,
+        "row": 6
       }
     },
     {
@@ -1516,9 +1837,16 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 408,
-        "row_tex": "MedAgent\\-Bench task success & 42.67 & 37.60 & $+5.07$ [3.88, 6.26] \\\\"
+        "label": "MedAgentBench task success",
+        "cells": [
+          "42.67",
+          "37.60",
+          "+5.07 [3.88, 6.26]"
+        ],
+        "path": "manuscript.pdf",
+        "page": 23,
+        "table": 11,
+        "row": 7
       }
     },
     {
@@ -1526,7 +1854,7 @@
       "table": "tab:replay-effects",
       "kind": "paper_reported",
       "dimensions": {
-        "label": "MedAgentBench cost-norm.\\ success",
+        "label": "MedAgentBench cost-norm. success",
         "arm": "A4",
         "n_seeds": 5
       },
@@ -1553,9 +1881,16 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 409,
-        "row_tex": "MedAgent\\-Bench cost-norm.\\ success & 36.08 & 30.80 & $+5.28$ [4.31, 6.25] \\\\"
+        "label": "MedAgentBench cost-norm. success",
+        "cells": [
+          "36.08",
+          "30.80",
+          "+5.28 [4.31, 6.25]"
+        ],
+        "path": "manuscript.pdf",
+        "page": 23,
+        "table": 11,
+        "row": 8
       }
     },
     {
@@ -1583,9 +1918,16 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 435,
-        "row_tex": "Exact-fork group & 0.0265 & 0.0328 & 0.0296 \\\\"
+        "label": "Exact-fork group",
+        "cells": [
+          "0.0265",
+          "0.0328",
+          "0.0296"
+        ],
+        "path": "manuscript.pdf",
+        "page": 24,
+        "table": 12,
+        "row": 1
       }
     },
     {
@@ -1613,9 +1955,16 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 436,
-        "row_tex": "Canonical structured-state collision & 0.2172 & 0.2953 & 0.2559 \\\\"
+        "label": "Canonical structured-state collision",
+        "cells": [
+          "0.2172",
+          "0.2953",
+          "0.2559"
+        ],
+        "path": "manuscript.pdf",
+        "page": 24,
+        "table": 12,
+        "row": 2
       }
     },
     {
@@ -1643,9 +1992,16 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 437,
-        "row_tex": "Within-instance turn index & 0.7503 & 0.6531 & 0.7021 \\\\"
+        "label": "Within-instance turn index",
+        "cells": [
+          "0.7503",
+          "0.6531",
+          "0.7021"
+        ],
+        "path": "manuscript.pdf",
+        "page": 24,
+        "table": 12,
+        "row": 3
       }
     },
     {
@@ -1673,9 +2029,16 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 438,
-        "row_tex": "No available group & 0.0060 & 0.0188 & 0.0123 \\\\"
+        "label": "No available group",
+        "cells": [
+          "0.0060",
+          "0.0188",
+          "0.0123"
+        ],
+        "path": "manuscript.pdf",
+        "page": 24,
+        "table": 12,
+        "row": 4
       }
     },
     {
@@ -1703,9 +2066,16 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 440,
-        "row_tex": "Nonzero local term & 0.8430 & 0.8334 & 0.8382 \\\\"
+        "label": "Nonzero local term",
+        "cells": [
+          "0.8430",
+          "0.8334",
+          "0.8382"
+        ],
+        "path": "manuscript.pdf",
+        "page": 24,
+        "table": 12,
+        "row": 5
       }
     },
     {
@@ -1751,9 +2121,19 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 527,
-        "row_tex": "& SFT & \\(1.5\\) & \\(\\mathrm{NA}\\) & 52.4 & 9.8 & 2{,}090 & 57.0 \\\\"
+        "label": "SFT",
+        "cells": [
+          "1.5",
+          "NA",
+          "52.4",
+          "9.8",
+          "2090",
+          "57.0"
+        ],
+        "path": "manuscript.pdf",
+        "page": 25,
+        "table": 13,
+        "row": 1
       }
     },
     {
@@ -1763,7 +2143,8 @@
       "dimensions": {
         "label": "A1",
         "backbone": "Qwen3.5-9B",
-        "n_seeds": 5
+        "n_seeds": 5,
+        "throughput_basis": "additive_model_estimate"
       },
       "metrics": [
         {
@@ -1800,9 +2181,19 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 528,
-        "row_tex": "& \\armone{} & \\(8.69\\pm0.17\\) & 1{,}072 & 71.8 & 9.0 & 1{,}870 & 51.2 \\\\"
+        "label": "A1",
+        "cells": [
+          "8.69±0.17",
+          "1072",
+          "71.8",
+          "9.0",
+          "1870",
+          "51.2"
+        ],
+        "path": "manuscript.pdf",
+        "page": 25,
+        "table": 13,
+        "row": 2
       }
     },
     {
@@ -1812,7 +2203,8 @@
       "dimensions": {
         "label": "A2",
         "backbone": "Qwen3.5-9B",
-        "n_seeds": 5
+        "n_seeds": 5,
+        "throughput_basis": "additive_model_estimate"
       },
       "metrics": [
         {
@@ -1849,9 +2241,19 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 529,
-        "row_tex": "& \\armtwo{} & \\(9.75\\pm0.23\\) & 956 & 76.3 & 8.1 & 1{,}660 & 45.5 \\\\"
+        "label": "A2",
+        "cells": [
+          "9.75±0.23",
+          "956",
+          "76.3",
+          "8.1",
+          "1660",
+          "45.5"
+        ],
+        "path": "manuscript.pdf",
+        "page": 25,
+        "table": 13,
+        "row": 3
       }
     },
     {
@@ -1861,7 +2263,8 @@
       "dimensions": {
         "label": "A3",
         "backbone": "Qwen3.5-9B",
-        "n_seeds": 5
+        "n_seeds": 5,
+        "throughput_basis": "additive_model_estimate"
       },
       "metrics": [
         {
@@ -1898,9 +2301,19 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 530,
-        "row_tex": "& \\armthree{} & \\(9.17\\pm0.33\\) & 1{,}016 & 73.1 & 7.9 & 1{,}600 & 43.8 \\\\"
+        "label": "A3",
+        "cells": [
+          "9.17±0.33",
+          "1016",
+          "73.1",
+          "7.9",
+          "1600",
+          "43.8"
+        ],
+        "path": "manuscript.pdf",
+        "page": 25,
+        "table": 13,
+        "row": 4
       }
     },
     {
@@ -1910,7 +2323,8 @@
       "dimensions": {
         "label": "A4",
         "backbone": "Qwen3.5-9B",
-        "n_seeds": 5
+        "n_seeds": 5,
+        "throughput_basis": "additive_model_estimate"
       },
       "metrics": [
         {
@@ -1947,9 +2361,19 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 531,
-        "row_tex": "& \\armfour{} & \\(10.39\\pm0.35\\) & 897 & 77.4 & 6.9 & 1{,}350 & 37.2 \\\\"
+        "label": "A4",
+        "cells": [
+          "10.39±0.35",
+          "897",
+          "77.4",
+          "6.9",
+          "1350",
+          "37.2"
+        ],
+        "path": "manuscript.pdf",
+        "page": 25,
+        "table": 13,
+        "row": 5
       }
     },
     {
@@ -1995,9 +2419,19 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 534,
-        "row_tex": "& SFT & \\(2.3\\) & \\(\\mathrm{NA}\\) & 64.7 & 10.2 & 2{,}290 & 45.8 \\\\"
+        "label": "SFT",
+        "cells": [
+          "2.3",
+          "NA",
+          "64.7",
+          "10.2",
+          "2290",
+          "45.8"
+        ],
+        "path": "manuscript.pdf",
+        "page": 25,
+        "table": 13,
+        "row": 6
       }
     },
     {
@@ -2044,9 +2478,19 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 535,
-        "row_tex": "& \\armone{} & \\(14.02\\pm0.42\\) & 665 & 81.2 & 9.4 & 2{,}010 & 40.5 \\\\"
+        "label": "A1",
+        "cells": [
+          "14.02±0.42",
+          "665",
+          "81.2",
+          "9.4",
+          "2010",
+          "40.5"
+        ],
+        "path": "manuscript.pdf",
+        "page": 25,
+        "table": 13,
+        "row": 7
       }
     },
     {
@@ -2093,453 +2537,19 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 536,
-        "row_tex": "& \\armfour{} & \\(16.89\\pm0.86\\) & 552 & 82.6 & 7.3 & 1{,}490 & 30.2 \\\\"
-      }
-    },
-    {
-      "id": "compute-ledger.01",
-      "table": "tab:compute-ledger",
-      "kind": "paper_reported",
-      "dimensions": {
-        "label": "A4 at 2^{23}"
-      },
-      "metrics": [
-        {
-          "name": "runs",
-          "unit": "count",
-          "value": 18.0
-        },
-        {
-          "name": "sampled_tokens_per_second",
-          "unit": "tokens_per_second",
-          "value": 897.0
-        },
-        {
-          "name": "gpu_hours_per_run",
-          "unit": "device_hours",
-          "value": 2.6,
-          "uncertainty": 0.08,
-          "uncertainty_type": "across_run_sample_standard_deviation"
-        },
-        {
-          "name": "gpu_hours",
-          "unit": "device_hours",
-          "value": 46.8
-        }
-      ],
-      "source": {
-        "path": "Tex/appendix.tex",
-        "line": 552,
-        "row_tex": "Hyperparameter pilot & \\armfour{} at \\(2^{23}\\) & 18 & 897 & \\(2.60\\pm0.08\\) & 46.80 \\\\"
-      }
-    },
-    {
-      "id": "compute-ledger.02",
-      "table": "tab:compute-ledger",
-      "kind": "paper_reported",
-      "dimensions": {
-        "label": "GiGPO at 2^{23}"
-      },
-      "metrics": [
-        {
-          "name": "runs",
-          "unit": "count",
-          "value": 5.0
-        },
-        {
-          "name": "sampled_tokens_per_second",
-          "unit": "tokens_per_second",
-          "value": 998.0
-        },
-        {
-          "name": "gpu_hours_per_run",
-          "unit": "device_hours",
-          "value": 2.33,
-          "uncertainty": 0.09,
-          "uncertainty_type": "across_run_sample_standard_deviation"
-        },
-        {
-          "name": "gpu_hours",
-          "unit": "device_hours",
-          "value": 11.65
-        }
-      ],
-      "source": {
-        "path": "Tex/appendix.tex",
-        "line": 554,
-        "row_tex": "\\multirow{4}{*}{Baseline coefficient pilot} & GiGPO at \\(2^{23}\\) & 5 & 998 & \\(2.33\\pm0.09\\) & 11.65 \\\\"
-      }
-    },
-    {
-      "id": "compute-ledger.03",
-      "table": "tab:compute-ledger",
-      "kind": "paper_reported",
-      "dimensions": {
-        "label": "Tree-GRPO at 2^{23}"
-      },
-      "metrics": [
-        {
-          "name": "runs",
-          "unit": "count",
-          "value": 5.0
-        },
-        {
-          "name": "sampled_tokens_per_second",
-          "unit": "tokens_per_second",
-          "value": 942.0
-        },
-        {
-          "name": "gpu_hours_per_run",
-          "unit": "device_hours",
-          "value": 2.47,
-          "uncertainty": 0.05,
-          "uncertainty_type": "across_run_sample_standard_deviation"
-        },
-        {
-          "name": "gpu_hours",
-          "unit": "device_hours",
-          "value": 12.35
-        }
-      ],
-      "source": {
-        "path": "Tex/appendix.tex",
-        "line": 555,
-        "row_tex": "& Tree-GRPO at \\(2^{23}\\) & 5 & 942 & \\(2.47\\pm0.05\\) & 12.35 \\\\"
-      }
-    },
-    {
-      "id": "compute-ledger.04",
-      "table": "tab:compute-ledger",
-      "kind": "paper_reported",
-      "dimensions": {
-        "label": "Adapted VPR at 2^{23}"
-      },
-      "metrics": [
-        {
-          "name": "runs",
-          "unit": "count",
-          "value": 5.0
-        },
-        {
-          "name": "sampled_tokens_per_second",
-          "unit": "tokens_per_second",
-          "value": 1006.0
-        },
-        {
-          "name": "gpu_hours_per_run",
-          "unit": "device_hours",
-          "value": 2.32,
-          "uncertainty": 0.1,
-          "uncertainty_type": "across_run_sample_standard_deviation"
-        },
-        {
-          "name": "gpu_hours",
-          "unit": "device_hours",
-          "value": 11.6
-        }
-      ],
-      "source": {
-        "path": "Tex/appendix.tex",
-        "line": 556,
-        "row_tex": "& Adapted VPR at \\(2^{23}\\) & 5 & 1{,}006 & \\(2.32\\pm0.10\\) & 11.60 \\\\"
-      }
-    },
-    {
-      "id": "compute-ledger.05",
-      "table": "tab:compute-ledger",
-      "kind": "paper_reported",
-      "dimensions": {
-        "label": "Adapted VinePPO at 2^{23}"
-      },
-      "metrics": [
-        {
-          "name": "runs",
-          "unit": "count",
-          "value": 5.0
-        },
-        {
-          "name": "sampled_tokens_per_second",
-          "unit": "tokens_per_second",
-          "value": 921.0
-        },
-        {
-          "name": "gpu_hours_per_run",
-          "unit": "device_hours",
-          "value": 2.53,
-          "uncertainty": 0.07,
-          "uncertainty_type": "across_run_sample_standard_deviation"
-        },
-        {
-          "name": "gpu_hours",
-          "unit": "device_hours",
-          "value": 12.65
-        }
-      ],
-      "source": {
-        "path": "Tex/appendix.tex",
-        "line": 557,
-        "row_tex": "& Adapted VinePPO at \\(2^{23}\\) & 5 & 921 & \\(2.53\\pm0.07\\) & 12.65 \\\\"
-      }
-    },
-    {
-      "id": "compute-ledger.06",
-      "table": "tab:compute-ledger",
-      "kind": "paper_reported",
-      "dimensions": {
-        "label": "A4 variants at 2^{23}"
-      },
-      "metrics": [
-        {
-          "name": "runs",
-          "unit": "count",
-          "value": 45.0
-        },
-        {
-          "name": "sampled_tokens_per_second",
-          "unit": "tokens_per_second",
-          "value": 897.0
-        },
-        {
-          "name": "gpu_hours_per_run",
-          "unit": "device_hours",
-          "value": 2.6,
-          "uncertainty": 0.08,
-          "uncertainty_type": "across_run_sample_standard_deviation"
-        },
-        {
-          "name": "gpu_hours",
-          "unit": "device_hours",
-          "value": 117.0
-        }
-      ],
-      "source": {
-        "path": "Tex/appendix.tex",
-        "line": 559,
-        "row_tex": "Design ablation & \\armfour{} variants at \\(2^{23}\\) & 45 & 897 & \\(2.60\\pm0.08\\) & 117.00 \\\\"
-      }
-    },
-    {
-      "id": "compute-ledger.07",
-      "table": "tab:compute-ledger",
-      "kind": "paper_reported",
-      "dimensions": {
-        "label": "A2 without replay"
-      },
-      "metrics": [
-        {
-          "name": "runs",
-          "unit": "count",
-          "value": 5.0
-        },
-        {
-          "name": "sampled_tokens_per_second",
-          "unit": "tokens_per_second",
-          "value": 988.0
-        },
-        {
-          "name": "gpu_hours_per_run",
-          "unit": "device_hours",
-          "value": 9.43,
-          "uncertainty": 0.36,
-          "uncertainty_type": "across_run_sample_standard_deviation"
-        },
-        {
-          "name": "gpu_hours",
-          "unit": "device_hours",
-          "value": 47.15
-        }
-      ],
-      "source": {
-        "path": "Tex/appendix.tex",
-        "line": 561,
-        "row_tex": "\\multirow{2}{*}{Control without forks} & \\armtwo{} without replay & 5 & 988 & \\(9.43\\pm0.36\\) & 47.15 \\\\"
-      }
-    },
-    {
-      "id": "compute-ledger.08",
-      "table": "tab:compute-ledger",
-      "kind": "paper_reported",
-      "dimensions": {
-        "label": "A4 without replay"
-      },
-      "metrics": [
-        {
-          "name": "runs",
-          "unit": "count",
-          "value": 5.0
-        },
-        {
-          "name": "sampled_tokens_per_second",
-          "unit": "tokens_per_second",
-          "value": 931.0
-        },
-        {
-          "name": "gpu_hours_per_run",
-          "unit": "device_hours",
-          "value": 10.01,
-          "uncertainty": 0.35,
-          "uncertainty_type": "across_run_sample_standard_deviation"
-        },
-        {
-          "name": "gpu_hours",
-          "unit": "device_hours",
-          "value": 50.05
-        }
-      ],
-      "source": {
-        "path": "Tex/appendix.tex",
-        "line": 562,
-        "row_tex": "& \\armfour{} without replay & 5 & 931 & \\(10.01\\pm0.35\\) & 50.05 \\\\"
-      }
-    },
-    {
-      "id": "compute-ledger.09",
-      "table": "tab:compute-ledger",
-      "kind": "paper_reported",
-      "dimensions": {
-        "label": "GiGPO"
-      },
-      "metrics": [
-        {
-          "name": "runs",
-          "unit": "count",
-          "value": 5.0
-        },
-        {
-          "name": "sampled_tokens_per_second",
-          "unit": "tokens_per_second",
-          "value": 998.0
-        },
-        {
-          "name": "gpu_hours_per_run",
-          "unit": "device_hours",
-          "value": 9.34,
-          "uncertainty": 0.3,
-          "uncertainty_type": "across_run_sample_standard_deviation"
-        },
-        {
-          "name": "gpu_hours",
-          "unit": "device_hours",
-          "value": 46.7
-        }
-      ],
-      "source": {
-        "path": "Tex/appendix.tex",
-        "line": 564,
-        "row_tex": "\\multirow{4}{*}{RL reference system} & GiGPO & 5 & 998 & \\(9.34\\pm0.30\\) & 46.70 \\\\"
-      }
-    },
-    {
-      "id": "compute-ledger.10",
-      "table": "tab:compute-ledger",
-      "kind": "paper_reported",
-      "dimensions": {
-        "label": "Tree-GRPO"
-      },
-      "metrics": [
-        {
-          "name": "runs",
-          "unit": "count",
-          "value": 5.0
-        },
-        {
-          "name": "sampled_tokens_per_second",
-          "unit": "tokens_per_second",
-          "value": 942.0
-        },
-        {
-          "name": "gpu_hours_per_run",
-          "unit": "device_hours",
-          "value": 9.89,
-          "uncertainty": 0.53,
-          "uncertainty_type": "across_run_sample_standard_deviation"
-        },
-        {
-          "name": "gpu_hours",
-          "unit": "device_hours",
-          "value": 49.45
-        }
-      ],
-      "source": {
-        "path": "Tex/appendix.tex",
-        "line": 565,
-        "row_tex": "& Tree-GRPO & 5 & 942 & \\(9.89\\pm0.53\\) & 49.45 \\\\"
-      }
-    },
-    {
-      "id": "compute-ledger.11",
-      "table": "tab:compute-ledger",
-      "kind": "paper_reported",
-      "dimensions": {
-        "label": "Adapted VPR"
-      },
-      "metrics": [
-        {
-          "name": "runs",
-          "unit": "count",
-          "value": 5.0
-        },
-        {
-          "name": "sampled_tokens_per_second",
-          "unit": "tokens_per_second",
-          "value": 1006.0
-        },
-        {
-          "name": "gpu_hours_per_run",
-          "unit": "device_hours",
-          "value": 9.27,
-          "uncertainty": 0.15,
-          "uncertainty_type": "across_run_sample_standard_deviation"
-        },
-        {
-          "name": "gpu_hours",
-          "unit": "device_hours",
-          "value": 46.35
-        }
-      ],
-      "source": {
-        "path": "Tex/appendix.tex",
-        "line": 566,
-        "row_tex": "& Adapted VPR & 5 & 1{,}006 & \\(9.27\\pm0.15\\) & 46.35 \\\\"
-      }
-    },
-    {
-      "id": "compute-ledger.12",
-      "table": "tab:compute-ledger",
-      "kind": "paper_reported",
-      "dimensions": {
-        "label": "Adapted VinePPO"
-      },
-      "metrics": [
-        {
-          "name": "runs",
-          "unit": "count",
-          "value": 5.0
-        },
-        {
-          "name": "sampled_tokens_per_second",
-          "unit": "tokens_per_second",
-          "value": 921.0
-        },
-        {
-          "name": "gpu_hours_per_run",
-          "unit": "device_hours",
-          "value": 10.12,
-          "uncertainty": 0.38,
-          "uncertainty_type": "across_run_sample_standard_deviation"
-        },
-        {
-          "name": "gpu_hours",
-          "unit": "device_hours",
-          "value": 50.6
-        }
-      ],
-      "source": {
-        "path": "Tex/appendix.tex",
-        "line": 567,
-        "row_tex": "& Adapted VinePPO & 5 & 921 & \\(10.12\\pm0.38\\) & 50.60 \\\\"
+        "label": "A4",
+        "cells": [
+          "16.89±0.86",
+          "552",
+          "82.6",
+          "7.3",
+          "1490",
+          "30.2"
+        ],
+        "path": "manuscript.pdf",
+        "page": 25,
+        "table": 13,
+        "row": 8
       }
     },
     {
@@ -2547,7 +2557,10 @@
       "table": "tab:compute-budget",
       "kind": "paper_reported",
       "dimensions": {
-        "label": "SFT initialization for both backbones"
+        "label": "SFT initialization for both backbones",
+        "panel": "fixed_configuration_reproduction",
+        "is_subtotal": false,
+        "accounting_basis": "paper_reported_nominal_and_reconstructed"
       },
       "metrics": [
         {
@@ -2568,9 +2581,16 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 583,
-        "row_tex": "SFT initialization for both backbones & 2 & 4 & \\(\\mathrm{NA}\\) \\\\"
+        "label": "SFT initialization for both backbones",
+        "cells": [
+          "2",
+          "4",
+          "NA"
+        ],
+        "path": "manuscript.pdf",
+        "page": 25,
+        "table": 14,
+        "row": 1
       }
     },
     {
@@ -2578,97 +2598,10 @@
       "table": "tab:compute-budget",
       "kind": "paper_reported",
       "dimensions": {
-        "label": "Hyperparameter pilot for Qwen3.5-9B"
-      },
-      "metrics": [
-        {
-          "name": "runs",
-          "unit": "count",
-          "value": 18.0
-        },
-        {
-          "name": "gpu_hours",
-          "unit": "device_hours",
-          "value": 47.0
-        },
-        {
-          "name": "rl_tokens",
-          "unit": "billion_tokens",
-          "value": 0.151
-        }
-      ],
-      "source": {
-        "path": "Tex/appendix.tex",
-        "line": 584,
-        "row_tex": "Hyperparameter pilot for Qwen3.5-9B & 18 & 47 & 0.151 \\\\"
-      }
-    },
-    {
-      "id": "compute-budget.03",
-      "table": "tab:compute-budget",
-      "kind": "paper_reported",
-      "dimensions": {
-        "label": "Baseline coefficient pilot with 4 systems, each with 5 settings"
-      },
-      "metrics": [
-        {
-          "name": "runs",
-          "unit": "count",
-          "value": 20.0
-        },
-        {
-          "name": "gpu_hours",
-          "unit": "device_hours",
-          "value": 48.0
-        },
-        {
-          "name": "rl_tokens",
-          "unit": "billion_tokens",
-          "value": 0.168
-        }
-      ],
-      "source": {
-        "path": "Tex/appendix.tex",
-        "line": 585,
-        "row_tex": "Baseline coefficient pilot with \\(4\\) systems, each with \\(5\\) settings & 20 & 48 & 0.168 \\\\"
-      }
-    },
-    {
-      "id": "compute-budget.04",
-      "table": "tab:compute-budget",
-      "kind": "paper_reported",
-      "dimensions": {
-        "label": "Design ablations with 15 configurations, each with 3 seeds"
-      },
-      "metrics": [
-        {
-          "name": "runs",
-          "unit": "count",
-          "value": 45.0
-        },
-        {
-          "name": "gpu_hours",
-          "unit": "device_hours",
-          "value": 117.0
-        },
-        {
-          "name": "rl_tokens",
-          "unit": "billion_tokens",
-          "value": 0.377
-        }
-      ],
-      "source": {
-        "path": "Tex/appendix.tex",
-        "line": 586,
-        "row_tex": "Design ablations with \\(15\\) configurations, each with \\(3\\) seeds & 45 & 117 & 0.377 \\\\"
-      }
-    },
-    {
-      "id": "compute-budget.05",
-      "table": "tab:compute-budget",
-      "kind": "paper_reported",
-      "dimensions": {
-        "label": "Primary Qwen3.5-9B factorial with 4 arms, each with 5 seeds"
+        "label": "Primary Qwen3.5-9B factorial with 4 arms, each with 5 seeds",
+        "panel": "fixed_configuration_reproduction",
+        "is_subtotal": false,
+        "accounting_basis": "paper_reported_nominal_and_reconstructed"
       },
       "metrics": [
         {
@@ -2688,17 +2621,27 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 587,
-        "row_tex": "Primary Qwen3.5-9B factorial with \\(4\\) arms, each with \\(5\\) seeds & 20 & 190 & 0.671 \\\\"
+        "label": "Primary Qwen3.5-9B factorial with 4 arms, each with 5 seeds",
+        "cells": [
+          "20",
+          "190",
+          "0.671"
+        ],
+        "path": "manuscript.pdf",
+        "page": 25,
+        "table": 14,
+        "row": 2
       }
     },
     {
-      "id": "compute-budget.06",
+      "id": "compute-budget.03",
       "table": "tab:compute-budget",
       "kind": "paper_reported",
       "dimensions": {
-        "label": "Controls without forks with 2 arms, each with 5 seeds"
+        "label": "Controls without forks with 2 arms, each with 5 seeds",
+        "panel": "fixed_configuration_reproduction",
+        "is_subtotal": false,
+        "accounting_basis": "paper_reported_nominal_and_reconstructed"
       },
       "metrics": [
         {
@@ -2718,47 +2661,67 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 588,
-        "row_tex": "Controls without forks with \\(2\\) arms, each with \\(5\\) seeds & 10 & 97 & 0.336 \\\\"
+        "label": "Controls without forks with 2 arms, each with 5 seeds",
+        "cells": [
+          "10",
+          "97",
+          "0.336"
+        ],
+        "path": "manuscript.pdf",
+        "page": 25,
+        "table": 14,
+        "row": 3
       }
     },
     {
-      "id": "compute-budget.07",
+      "id": "compute-budget.04",
       "table": "tab:compute-budget",
       "kind": "paper_reported",
       "dimensions": {
-        "label": "RL reference systems with 4 systems, each with 5 seeds"
+        "label": "RL reference systems with 5 systems, each with 5 seeds",
+        "panel": "fixed_configuration_reproduction",
+        "is_subtotal": false,
+        "accounting_basis": "paper_reported_nominal_and_reconstructed"
       },
       "metrics": [
         {
           "name": "runs",
           "unit": "count",
-          "value": 20.0
+          "value": 25.0
         },
         {
           "name": "gpu_hours",
           "unit": "device_hours",
-          "value": 193.0
+          "value": 245.0
         },
         {
           "name": "rl_tokens",
           "unit": "billion_tokens",
-          "value": 0.671
+          "value": 0.839
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 589,
-        "row_tex": "RL reference systems with \\(4\\) systems, each with \\(5\\) seeds & 20 & 193 & 0.671 \\\\"
+        "label": "RL reference systems with 5 systems, each with 5 seeds",
+        "cells": [
+          "25",
+          "245",
+          "0.839"
+        ],
+        "path": "manuscript.pdf",
+        "page": 25,
+        "table": 14,
+        "row": 4
       }
     },
     {
-      "id": "compute-budget.08",
+      "id": "compute-budget.05",
       "table": "tab:compute-budget",
       "kind": "paper_reported",
       "dimensions": {
-        "label": "gpt-oss-20b replication with 2 arms, each with 3 seeds"
+        "label": "gpt-oss-20b replication with 2 arms, each with 3 seeds",
+        "panel": "fixed_configuration_reproduction",
+        "is_subtotal": false,
+        "accounting_basis": "paper_reported_nominal_and_reconstructed"
       },
       "metrics": [
         {
@@ -2778,17 +2741,27 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 590,
-        "row_tex": "gpt-oss-20b replication with \\(2\\) arms, each with \\(3\\) seeds & 6 & 93 & 0.201 \\\\"
+        "label": "gpt-oss-20b replication with 2 arms, each with 3 seeds",
+        "cells": [
+          "6",
+          "93",
+          "0.201"
+        ],
+        "path": "manuscript.pdf",
+        "page": 25,
+        "table": 14,
+        "row": 5
       }
     },
     {
-      "id": "compute-budget.09",
+      "id": "compute-budget.06",
       "table": "tab:compute-budget",
       "kind": "paper_reported",
       "dimensions": {
-        "label": "Credit assignment probe and memory interventions"
+        "label": "Credit assignment probe and memory interventions",
+        "panel": "fixed_configuration_reproduction",
+        "is_subtotal": false,
+        "accounting_basis": "paper_reported_nominal_and_reconstructed"
       },
       "metrics": [
         {
@@ -2810,9 +2783,138 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 591,
-        "row_tex": "Credit assignment probe and memory interventions & \\(\\mathrm{NA}\\) & 8 & \\(\\mathrm{NA}\\) \\\\"
+        "label": "Credit assignment probe and memory interventions",
+        "cells": [
+          "NA",
+          "8",
+          "NA"
+        ],
+        "path": "manuscript.pdf",
+        "page": 25,
+        "table": 14,
+        "row": 6
+      }
+    },
+    {
+      "id": "compute-budget.07",
+      "table": "tab:compute-budget",
+      "kind": "paper_reported",
+      "dimensions": {
+        "label": "Evaluation across suites and inference controls",
+        "panel": "fixed_configuration_reproduction",
+        "is_subtotal": false,
+        "accounting_basis": "paper_reported_nominal_and_reconstructed"
+      },
+      "metrics": [
+        {
+          "name": "runs",
+          "unit": "count",
+          "value": null,
+          "missing_reason": "not_reported"
+        },
+        {
+          "name": "gpu_hours",
+          "unit": "device_hours",
+          "value": 278.0
+        },
+        {
+          "name": "rl_tokens",
+          "unit": "billion_tokens",
+          "value": null,
+          "missing_reason": "not_reported"
+        }
+      ],
+      "source": {
+        "label": "Evaluation across suites and inference controls",
+        "cells": [
+          "NA",
+          "278",
+          "NA"
+        ],
+        "path": "manuscript.pdf",
+        "page": 25,
+        "table": 14,
+        "row": 7
+      }
+    },
+    {
+      "id": "compute-budget.08",
+      "table": "tab:compute-budget",
+      "kind": "paper_reported",
+      "dimensions": {
+        "label": "Reproduction allowance",
+        "panel": "fixed_configuration_reproduction",
+        "is_subtotal": true,
+        "accounting_basis": "paper_reported_nominal_and_reconstructed"
+      },
+      "metrics": [
+        {
+          "name": "runs",
+          "unit": "count",
+          "value": 63.0
+        },
+        {
+          "name": "gpu_hours",
+          "unit": "device_hours",
+          "value": 915.0
+        },
+        {
+          "name": "rl_tokens",
+          "unit": "billion_tokens",
+          "value": 2.047
+        }
+      ],
+      "source": {
+        "label": "Reproduction allowance",
+        "cells": [
+          "63",
+          "915",
+          "2.047"
+        ],
+        "path": "manuscript.pdf",
+        "page": 25,
+        "table": 14,
+        "row": 8
+      }
+    },
+    {
+      "id": "compute-budget.09",
+      "table": "tab:compute-budget",
+      "kind": "paper_reported",
+      "dimensions": {
+        "label": "Hyperparameter pilot for Qwen3.5-9B",
+        "panel": "search_and_screening",
+        "is_subtotal": false,
+        "accounting_basis": "paper_reported_nominal_and_reconstructed"
+      },
+      "metrics": [
+        {
+          "name": "runs",
+          "unit": "count",
+          "value": 18.0
+        },
+        {
+          "name": "gpu_hours",
+          "unit": "device_hours",
+          "value": 47.0
+        },
+        {
+          "name": "rl_tokens",
+          "unit": "billion_tokens",
+          "value": 0.151
+        }
+      ],
+      "source": {
+        "label": "Hyperparameter pilot for Qwen3.5-9B",
+        "cells": [
+          "18",
+          "47",
+          "0.151"
+        ],
+        "path": "manuscript.pdf",
+        "page": 25,
+        "table": 14,
+        "row": 9
       }
     },
     {
@@ -2820,31 +2922,39 @@
       "table": "tab:compute-budget",
       "kind": "paper_reported",
       "dimensions": {
-        "label": "Evaluation across suites and inference controls"
+        "label": "Baseline coefficient pilot with 5 systems, each with 5 settings",
+        "panel": "search_and_screening",
+        "is_subtotal": false,
+        "accounting_basis": "paper_reported_nominal_and_reconstructed"
       },
       "metrics": [
         {
           "name": "runs",
           "unit": "count",
-          "value": null,
-          "missing_reason": "not_reported"
+          "value": 25.0
         },
         {
           "name": "gpu_hours",
           "unit": "device_hours",
-          "value": 268.0
+          "value": 60.0
         },
         {
           "name": "rl_tokens",
           "unit": "billion_tokens",
-          "value": null,
-          "missing_reason": "not_reported"
+          "value": 0.21
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 592,
-        "row_tex": "Evaluation across suites and inference controls & \\(\\mathrm{NA}\\) & 268 & \\(\\mathrm{NA}\\) \\\\"
+        "label": "Baseline coefficient pilot with 5 systems, each with 5 settings",
+        "cells": [
+          "25",
+          "60",
+          "0.210"
+        ],
+        "path": "manuscript.pdf",
+        "page": 25,
+        "table": 14,
+        "row": 10
       }
     },
     {
@@ -2852,29 +2962,79 @@
       "table": "tab:compute-budget",
       "kind": "paper_reported",
       "dimensions": {
-        "label": "Total"
+        "label": "Design ablations with 16 configurations, each with 3 seeds",
+        "panel": "search_and_screening",
+        "is_subtotal": false,
+        "accounting_basis": "paper_reported_nominal_and_reconstructed"
       },
       "metrics": [
         {
           "name": "runs",
           "unit": "count",
-          "value": 141.0
+          "value": 48.0
         },
         {
           "name": "gpu_hours",
           "unit": "device_hours",
-          "value": 1065.0
+          "value": 125.0
         },
         {
           "name": "rl_tokens",
           "unit": "billion_tokens",
-          "value": 2.575
+          "value": 0.402
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 594,
-        "row_tex": "Total & 141 & 1{,}065 & 2.575 \\\\"
+        "label": "Design ablations with 16 configurations, each with 3 seeds",
+        "cells": [
+          "48",
+          "125",
+          "0.402"
+        ],
+        "path": "manuscript.pdf",
+        "page": 25,
+        "table": 14,
+        "row": 11
+      }
+    },
+    {
+      "id": "compute-budget.12",
+      "table": "tab:compute-budget",
+      "kind": "paper_reported",
+      "dimensions": {
+        "label": "Search and screen subtotal",
+        "panel": "search_and_screening",
+        "is_subtotal": true,
+        "accounting_basis": "paper_reported_nominal_and_reconstructed"
+      },
+      "metrics": [
+        {
+          "name": "runs",
+          "unit": "count",
+          "value": 91.0
+        },
+        {
+          "name": "gpu_hours",
+          "unit": "device_hours",
+          "value": 232.0
+        },
+        {
+          "name": "rl_tokens",
+          "unit": "billion_tokens",
+          "value": 0.763
+        }
+      ],
+      "source": {
+        "label": "Search and screen subtotal",
+        "cells": [
+          "91",
+          "232",
+          "0.763"
+        ],
+        "path": "manuscript.pdf",
+        "page": 25,
+        "table": 14,
+        "row": 12
       }
     },
     {
@@ -2913,9 +3073,17 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 648,
-        "row_tex": "Verified calculation accuracy & \\(+0.53\\) & [-1.02, 2.07] & 0.3994 & 0.3994 \\\\"
+        "label": "Verified calculation accuracy",
+        "cells": [
+          "+0.53",
+          "[-1.02, 2.07]",
+          "0.3994",
+          "0.3994"
+        ],
+        "path": "manuscript.pdf",
+        "page": 27,
+        "table": 15,
+        "row": 1
       }
     },
     {
@@ -2954,9 +3122,17 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 649,
-        "row_tex": "Grounded exact match & \\(+3.53\\) & [2.37, 4.70] & 0.0011 & 0.0055 \\\\"
+        "label": "Grounded exact match",
+        "cells": [
+          "+3.53",
+          "[2.37, 4.70]",
+          "0.0011",
+          "0.0055"
+        ],
+        "path": "manuscript.pdf",
+        "page": 27,
+        "table": 15,
+        "row": 2
       }
     },
     {
@@ -2995,9 +3171,17 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 650,
-        "row_tex": "Horizon slope, \\armfour{}\\(-\\)\\armone{} & \\(+1.68\\) & [0.90, 2.46] & 0.0039 & 0.0156 \\\\"
+        "label": "Horizon slope, A4-A1",
+        "cells": [
+          "+1.68",
+          "[0.90, 2.46]",
+          "0.0039",
+          "0.0156"
+        ],
+        "path": "manuscript.pdf",
+        "page": 27,
+        "table": 15,
+        "row": 3
       }
     },
     {
@@ -3036,9 +3220,17 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 651,
-        "row_tex": "MedAgent\\-Bench task success & \\(+5.47\\) & [2.89, 8.04] & 0.0042 & 0.0156 \\\\"
+        "label": "MedAgentBench task success",
+        "cells": [
+          "+5.47",
+          "[2.89, 8.04]",
+          "0.0042",
+          "0.0156"
+        ],
+        "path": "manuscript.pdf",
+        "page": 27,
+        "table": 15,
+        "row": 4
       }
     },
     {
@@ -3077,9 +3269,17 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 652,
-        "row_tex": "EHRSHOT mean AUPRC & \\(+1.07\\) & [0.20, 1.95] & 0.0271 & 0.0542 \\\\"
+        "label": "EHRSHOT mean AUPRC",
+        "cells": [
+          "+1.07",
+          "[0.20, 1.95]",
+          "0.0271",
+          "0.0542"
+        ],
+        "path": "manuscript.pdf",
+        "page": 27,
+        "table": 15,
+        "row": 5
       }
     },
     {
@@ -3087,7 +3287,7 @@
       "table": "tab:interaction-tests",
       "kind": "paper_reported",
       "dimensions": {
-        "label": "MedAgentBench cost-norm.\\ success",
+        "label": "MedAgentBench cost-norm. success",
         "family": "secondary_descriptive",
         "n_seeds": 5
       },
@@ -3119,9 +3319,17 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 654,
-        "row_tex": "MedAgent\\-Bench cost-norm.\\ success & \\(+5.09\\) & [2.44, 7.74] & 0.0060 & \\(\\mathrm{NA}\\) \\\\"
+        "label": "MedAgentBench cost-norm. success",
+        "cells": [
+          "+5.09",
+          "[2.44, 7.74]",
+          "0.0060",
+          "NA"
+        ],
+        "path": "manuscript.pdf",
+        "page": 27,
+        "table": 15,
+        "row": 6
       }
     },
     {
@@ -3161,9 +3369,17 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 655,
-        "row_tex": "EHRSHOT mean AUROC & \\(+1.45\\) & [0.91, 1.99] & 0.0018 & \\(\\mathrm{NA}\\) \\\\"
+        "label": "EHRSHOT mean AUROC",
+        "cells": [
+          "+1.45",
+          "[0.91, 1.99]",
+          "0.0018",
+          "NA"
+        ],
+        "path": "manuscript.pdf",
+        "page": 27,
+        "table": 15,
+        "row": 7
       }
     },
     {
@@ -3173,7 +3389,8 @@
       "dimensions": {
         "label": "VPR",
         "endpoint": "calculation_verified_accuracy",
-        "family": "strongest_reference",
+        "family": "previously_selected_references",
+        "comparison_status": "exploratory",
         "n_seeds": 5
       },
       "metrics": [
@@ -3199,13 +3416,21 @@
         {
           "name": "holm_p_value",
           "unit": "probability",
-          "value": 0.1466
+          "value": 0.2314
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 679,
-        "row_tex": "Verified calculation accuracy & VPR & \\(+0.82\\) & [-0.45, 2.09] & 0.1466 & 0.1466 \\\\"
+        "label": "VPR",
+        "cells": [
+          "+0.82",
+          "[-0.45, 2.09]",
+          "0.1466",
+          "0.2314"
+        ],
+        "path": "manuscript.pdf",
+        "page": 28,
+        "table": 16,
+        "row": 1
       }
     },
     {
@@ -3215,7 +3440,8 @@
       "dimensions": {
         "label": "Tree-GRPO",
         "endpoint": "retrieval_grounded_exact_match",
-        "family": "strongest_reference",
+        "family": "previously_selected_references",
+        "comparison_status": "exploratory",
         "n_seeds": 5
       },
       "metrics": [
@@ -3241,13 +3467,21 @@
         {
           "name": "holm_p_value",
           "unit": "probability",
-          "value": 0.0157
+          "value": 0.0156
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 680,
-        "row_tex": "Grounded exact match & Tree-GRPO & \\(+2.48\\) & [1.45, 3.51] & 0.0026 & 0.0157 \\\\"
+        "label": "Tree-GRPO",
+        "cells": [
+          "+2.48",
+          "[1.45, 3.51]",
+          "0.0026",
+          "0.0156"
+        ],
+        "path": "manuscript.pdf",
+        "page": 28,
+        "table": 16,
+        "row": 2
       }
     },
     {
@@ -3257,7 +3491,8 @@
       "dimensions": {
         "label": "Tree-GRPO",
         "endpoint": "medagentbench_task_success",
-        "family": "strongest_reference",
+        "family": "previously_selected_references",
+        "comparison_status": "exploratory",
         "n_seeds": 5
       },
       "metrics": [
@@ -3270,26 +3505,34 @@
           "name": "confidence_interval",
           "unit": "percentage_points",
           "ci95": [
-            -0.46,
-            6.86
+            -1.23,
+            7.63
           ],
           "interval_type": "paired_seed_t_95_percent"
         },
         {
           "name": "p_value",
           "unit": "probability",
-          "value": 0.0723
+          "value": 0.1157
         },
         {
           "name": "holm_p_value",
           "unit": "probability",
-          "value": 0.1447
+          "value": 0.2314
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 681,
-        "row_tex": "MedAgent\\-Bench task success & Tree-GRPO & \\(+3.20\\) & [-0.46, 6.86] & 0.0723 & 0.1447 \\\\"
+        "label": "Tree-GRPO",
+        "cells": [
+          "+3.20",
+          "[-1.23, 7.63]",
+          "0.1157",
+          "0.2314"
+        ],
+        "path": "manuscript.pdf",
+        "page": 28,
+        "table": 16,
+        "row": 3
       }
     },
     {
@@ -3299,7 +3542,8 @@
       "dimensions": {
         "label": "VPR",
         "endpoint": "medagentbench_cost_normalized_success",
-        "family": "strongest_reference",
+        "family": "previously_selected_references",
+        "comparison_status": "exploratory",
         "n_seeds": 5
       },
       "metrics": [
@@ -3325,13 +3569,21 @@
         {
           "name": "holm_p_value",
           "unit": "probability",
-          "value": 0.0992
+          "value": 0.0993
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 682,
-        "row_tex": "MedAgent\\-Bench cost-norm.\\ success & VPR & \\(+3.40\\) & [0.44, 6.36] & 0.0331 & 0.0992 \\\\"
+        "label": "VPR",
+        "cells": [
+          "+3.40",
+          "[0.44, 6.36]",
+          "0.0331",
+          "0.0993"
+        ],
+        "path": "manuscript.pdf",
+        "page": 28,
+        "table": 16,
+        "row": 4
       }
     },
     {
@@ -3341,7 +3593,8 @@
       "dimensions": {
         "label": "VPR",
         "endpoint": "ehrshot_mean_auprc",
-        "family": "strongest_reference",
+        "family": "previously_selected_references",
+        "comparison_status": "exploratory",
         "n_seeds": 5
       },
       "metrics": [
@@ -3367,13 +3620,21 @@
         {
           "name": "holm_p_value",
           "unit": "probability",
-          "value": 0.0183
+          "value": 0.0185
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 683,
-        "row_tex": "EHRSHOT mean AUPRC & VPR & \\(+1.20\\) & [0.65, 1.75] & 0.0037 & 0.0183 \\\\"
+        "label": "VPR",
+        "cells": [
+          "+1.20",
+          "[0.65, 1.75]",
+          "0.0037",
+          "0.0185"
+        ],
+        "path": "manuscript.pdf",
+        "page": 28,
+        "table": 16,
+        "row": 5
       }
     },
     {
@@ -3383,7 +3644,8 @@
       "dimensions": {
         "label": "VPR",
         "endpoint": "ehrshot_mean_auroc",
-        "family": "strongest_reference",
+        "family": "previously_selected_references",
+        "comparison_status": "exploratory",
         "n_seeds": 5
       },
       "metrics": [
@@ -3409,13 +3671,21 @@
         {
           "name": "holm_p_value",
           "unit": "probability",
-          "value": 0.0233
+          "value": 0.0232
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 684,
-        "row_tex": "EHRSHOT mean AUROC & VPR & \\(+0.72\\) & [0.35, 1.09] & 0.0058 & 0.0233 \\\\"
+        "label": "VPR",
+        "cells": [
+          "+0.72",
+          "[0.35, 1.09]",
+          "0.0058",
+          "0.0232"
+        ],
+        "path": "manuscript.pdf",
+        "page": 28,
+        "table": 16,
+        "row": 6
       }
     },
     {
@@ -3426,6 +3696,7 @@
         "label": "VinePPO",
         "endpoint": "calculation_verified_accuracy",
         "family": "adapted_vineppo",
+        "comparison_status": "prespecified",
         "n_seeds": 5
       },
       "metrics": [
@@ -3451,13 +3722,21 @@
         {
           "name": "holm_p_value",
           "unit": "probability",
-          "value": 0.111
+          "value": 0.123
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 687,
-        "row_tex": "Verified calculation accuracy & VinePPO & \\(+1.21\\) & [-0.09, 2.51] & 0.0615 & 0.1110 \\\\"
+        "label": "VinePPO",
+        "cells": [
+          "+1.21",
+          "[-0.09, 2.51]",
+          "0.0615",
+          "0.1230"
+        ],
+        "path": "manuscript.pdf",
+        "page": 28,
+        "table": 16,
+        "row": 7
       }
     },
     {
@@ -3468,6 +3747,7 @@
         "label": "VinePPO",
         "endpoint": "retrieval_grounded_exact_match",
         "family": "adapted_vineppo",
+        "comparison_status": "prespecified",
         "n_seeds": 5
       },
       "metrics": [
@@ -3493,13 +3773,21 @@
         {
           "name": "holm_p_value",
           "unit": "probability",
-          "value": 0.0094
+          "value": 0.0096
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 688,
-        "row_tex": "Grounded exact match & VinePPO & \\(+2.91\\) & [1.85, 3.97] & 0.0016 & 0.0094 \\\\"
+        "label": "VinePPO",
+        "cells": [
+          "+2.91",
+          "[1.85, 3.97]",
+          "0.0016",
+          "0.0096"
+        ],
+        "path": "manuscript.pdf",
+        "page": 28,
+        "table": 16,
+        "row": 8
       }
     },
     {
@@ -3510,6 +3798,7 @@
         "label": "VinePPO",
         "endpoint": "medagentbench_task_success",
         "family": "adapted_vineppo",
+        "comparison_status": "prespecified",
         "n_seeds": 5
       },
       "metrics": [
@@ -3522,26 +3811,34 @@
           "name": "confidence_interval",
           "unit": "percentage_points",
           "ci95": [
-            -0.13,
-            7.07
+            -1.85,
+            8.78
           ],
           "interval_type": "paired_seed_t_95_percent"
         },
         {
           "name": "p_value",
           "unit": "probability",
-          "value": 0.0555
+          "value": 0.1443
         },
         {
           "name": "holm_p_value",
           "unit": "probability",
-          "value": 0.111
+          "value": 0.1443
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 689,
-        "row_tex": "MedAgent\\-Bench task success & VinePPO & \\(+3.47\\) & [-0.13, 7.07] & 0.0555 & 0.1110 \\\\"
+        "label": "VinePPO",
+        "cells": [
+          "+3.47",
+          "[-1.85, 8.78]",
+          "0.1443",
+          "0.1443"
+        ],
+        "path": "manuscript.pdf",
+        "page": 28,
+        "table": 16,
+        "row": 9
       }
     },
     {
@@ -3552,6 +3849,7 @@
         "label": "VinePPO",
         "endpoint": "medagentbench_cost_normalized_success",
         "family": "adapted_vineppo",
+        "comparison_status": "prespecified",
         "n_seeds": 5
       },
       "metrics": [
@@ -3577,13 +3875,21 @@
         {
           "name": "holm_p_value",
           "unit": "probability",
-          "value": 0.0517
+          "value": 0.0516
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 690,
-        "row_tex": "MedAgent\\-Bench cost-norm.\\ success & VinePPO & \\(+4.12\\) & [1.20, 7.04] & 0.0172 & 0.0517 \\\\"
+        "label": "VinePPO",
+        "cells": [
+          "+4.12",
+          "[1.20, 7.04]",
+          "0.0172",
+          "0.0516"
+        ],
+        "path": "manuscript.pdf",
+        "page": 28,
+        "table": 16,
+        "row": 10
       }
     },
     {
@@ -3594,6 +3900,7 @@
         "label": "VinePPO",
         "endpoint": "ehrshot_mean_auprc",
         "family": "adapted_vineppo",
+        "comparison_status": "prespecified",
         "n_seeds": 5
       },
       "metrics": [
@@ -3619,13 +3926,21 @@
         {
           "name": "holm_p_value",
           "unit": "probability",
-          "value": 0.0101
+          "value": 0.01
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 691,
-        "row_tex": "EHRSHOT mean AUPRC & VinePPO & \\(+1.44\\) & [0.88, 2.00] & 0.0020 & 0.0101 \\\\"
+        "label": "VinePPO",
+        "cells": [
+          "+1.44",
+          "[0.88, 2.00]",
+          "0.0020",
+          "0.0100"
+        ],
+        "path": "manuscript.pdf",
+        "page": 28,
+        "table": 16,
+        "row": 11
       }
     },
     {
@@ -3636,6 +3951,7 @@
         "label": "VinePPO",
         "endpoint": "ehrshot_mean_auroc",
         "family": "adapted_vineppo",
+        "comparison_status": "prespecified",
         "n_seeds": 5
       },
       "metrics": [
@@ -3661,13 +3977,327 @@
         {
           "name": "holm_p_value",
           "unit": "probability",
-          "value": 0.0101
+          "value": 0.01
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 692,
-        "row_tex": "EHRSHOT mean AUROC & VinePPO & \\(+0.98\\) & [0.60, 1.36] & 0.0021 & 0.0101 \\\\"
+        "label": "VinePPO",
+        "cells": [
+          "+0.98",
+          "[0.60, 1.36]",
+          "0.0021",
+          "0.0100"
+        ],
+        "path": "manuscript.pdf",
+        "page": 28,
+        "table": 16,
+        "row": 12
+      }
+    },
+    {
+      "id": "baseline-contrasts.13",
+      "table": "tab:baseline-contrasts",
+      "kind": "paper_reported",
+      "dimensions": {
+        "label": "Verified calculation accuracy",
+        "endpoint": "calculation_verified_accuracy",
+        "family": "tree_grpo_process",
+        "comparison_status": "exploratory",
+        "n_seeds": 5
+      },
+      "metrics": [
+        {
+          "name": "estimate",
+          "unit": "percentage_points",
+          "value": 0.45
+        },
+        {
+          "name": "confidence_interval",
+          "unit": "percentage_points",
+          "ci95": [
+            -0.77,
+            1.67
+          ],
+          "interval_type": "paired_seed_t_95_percent"
+        },
+        {
+          "name": "p_value",
+          "unit": "probability",
+          "value": 0.3626
+        },
+        {
+          "name": "holm_p_value",
+          "unit": "probability",
+          "value": 0.6282
+        }
+      ],
+      "source": {
+        "label": "Verified calculation accuracy",
+        "cells": [
+          "+0.45",
+          "[-0.77, 1.67]",
+          "0.3626",
+          "0.6282"
+        ],
+        "path": "manuscript.pdf",
+        "page": 28,
+        "table": 16,
+        "row": 13
+      }
+    },
+    {
+      "id": "baseline-contrasts.14",
+      "table": "tab:baseline-contrasts",
+      "kind": "paper_reported",
+      "dimensions": {
+        "label": "Grounded exact match",
+        "endpoint": "retrieval_grounded_exact_match",
+        "family": "tree_grpo_process",
+        "comparison_status": "exploratory",
+        "n_seeds": 5
+      },
+      "metrics": [
+        {
+          "name": "estimate",
+          "unit": "percentage_points",
+          "value": 1.97
+        },
+        {
+          "name": "confidence_interval",
+          "unit": "percentage_points",
+          "ci95": [
+            1.09,
+            2.85
+          ],
+          "interval_type": "paired_seed_t_95_percent"
+        },
+        {
+          "name": "p_value",
+          "unit": "probability",
+          "value": 0.0034
+        },
+        {
+          "name": "holm_p_value",
+          "unit": "probability",
+          "value": 0.0204
+        }
+      ],
+      "source": {
+        "label": "Grounded exact match",
+        "cells": [
+          "+1.97",
+          "[1.09, 2.85]",
+          "0.0034",
+          "0.0204"
+        ],
+        "path": "manuscript.pdf",
+        "page": 28,
+        "table": 16,
+        "row": 14
+      }
+    },
+    {
+      "id": "baseline-contrasts.15",
+      "table": "tab:baseline-contrasts",
+      "kind": "paper_reported",
+      "dimensions": {
+        "label": "MedAgentBench task success",
+        "endpoint": "medagentbench_task_success",
+        "family": "tree_grpo_process",
+        "comparison_status": "exploratory",
+        "n_seeds": 5
+      },
+      "metrics": [
+        {
+          "name": "estimate",
+          "unit": "percentage_points",
+          "value": 2.13
+        },
+        {
+          "name": "confidence_interval",
+          "unit": "percentage_points",
+          "ci95": [
+            -3.02,
+            7.28
+          ],
+          "interval_type": "paired_seed_t_95_percent"
+        },
+        {
+          "name": "p_value",
+          "unit": "probability",
+          "value": 0.3141
+        },
+        {
+          "name": "holm_p_value",
+          "unit": "probability",
+          "value": 0.6282
+        }
+      ],
+      "source": {
+        "label": "MedAgentBench task success",
+        "cells": [
+          "+2.13",
+          "[-3.02, 7.28]",
+          "0.3141",
+          "0.6282"
+        ],
+        "path": "manuscript.pdf",
+        "page": 28,
+        "table": 16,
+        "row": 15
+      }
+    },
+    {
+      "id": "baseline-contrasts.16",
+      "table": "tab:baseline-contrasts",
+      "kind": "paper_reported",
+      "dimensions": {
+        "label": "MedAgentBench cost-normalized success",
+        "endpoint": "medagentbench_cost_normalized_success",
+        "family": "tree_grpo_process",
+        "comparison_status": "exploratory",
+        "n_seeds": 5
+      },
+      "metrics": [
+        {
+          "name": "estimate",
+          "unit": "percentage_points",
+          "value": 2.6
+        },
+        {
+          "name": "confidence_interval",
+          "unit": "percentage_points",
+          "ci95": [
+            0.05,
+            5.15
+          ],
+          "interval_type": "paired_seed_t_95_percent"
+        },
+        {
+          "name": "p_value",
+          "unit": "probability",
+          "value": 0.0471
+        },
+        {
+          "name": "holm_p_value",
+          "unit": "probability",
+          "value": 0.1413
+        }
+      ],
+      "source": {
+        "label": "MedAgentBench cost-normalized success",
+        "cells": [
+          "+2.60",
+          "[0.05, 5.15]",
+          "0.0471",
+          "0.1413"
+        ],
+        "path": "manuscript.pdf",
+        "page": 28,
+        "table": 16,
+        "row": 16
+      }
+    },
+    {
+      "id": "baseline-contrasts.17",
+      "table": "tab:baseline-contrasts",
+      "kind": "paper_reported",
+      "dimensions": {
+        "label": "EHRSHOT mean AUPRC",
+        "endpoint": "ehrshot_mean_auprc",
+        "family": "tree_grpo_process",
+        "comparison_status": "exploratory",
+        "n_seeds": 5
+      },
+      "metrics": [
+        {
+          "name": "estimate",
+          "unit": "percentage_points",
+          "value": 0.78
+        },
+        {
+          "name": "confidence_interval",
+          "unit": "percentage_points",
+          "ci95": [
+            0.33,
+            1.23
+          ],
+          "interval_type": "paired_seed_t_95_percent"
+        },
+        {
+          "name": "p_value",
+          "unit": "probability",
+          "value": 0.0084
+        },
+        {
+          "name": "holm_p_value",
+          "unit": "probability",
+          "value": 0.0336
+        }
+      ],
+      "source": {
+        "label": "EHRSHOT mean AUPRC",
+        "cells": [
+          "+0.78",
+          "[0.33, 1.23]",
+          "0.0084",
+          "0.0336"
+        ],
+        "path": "manuscript.pdf",
+        "page": 28,
+        "table": 16,
+        "row": 17
+      }
+    },
+    {
+      "id": "baseline-contrasts.18",
+      "table": "tab:baseline-contrasts",
+      "kind": "paper_reported",
+      "dimensions": {
+        "label": "EHRSHOT mean AUROC",
+        "endpoint": "ehrshot_mean_auroc",
+        "family": "tree_grpo_process",
+        "comparison_status": "exploratory",
+        "n_seeds": 5
+      },
+      "metrics": [
+        {
+          "name": "estimate",
+          "unit": "percentage_points",
+          "value": 0.62
+        },
+        {
+          "name": "confidence_interval",
+          "unit": "percentage_points",
+          "ci95": [
+            0.32,
+            0.92
+          ],
+          "interval_type": "paired_seed_t_95_percent"
+        },
+        {
+          "name": "p_value",
+          "unit": "probability",
+          "value": 0.0045
+        },
+        {
+          "name": "holm_p_value",
+          "unit": "probability",
+          "value": 0.0225
+        }
+      ],
+      "source": {
+        "label": "EHRSHOT mean AUROC",
+        "cells": [
+          "+0.62",
+          "[0.32, 0.92]",
+          "0.0045",
+          "0.0225"
+        ],
+        "path": "manuscript.pdf",
+        "page": 28,
+        "table": 16,
+        "row": 18
       }
     },
     {
@@ -3726,9 +4356,19 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 882,
-        "row_tex": "1 & \\result{75.44}{2.78} & \\result{77.12}{3.27} & \\result{79.44}{3.24} & \\result{81.04}{1.95} & \\result{+5.60}{2.68} & \\result{-0.08}{4.22} \\\\"
+        "label": "1",
+        "cells": [
+          "75.44±2.78",
+          "77.12±3.27",
+          "79.44±3.24",
+          "81.04±1.95",
+          "+5.60±2.68",
+          "-0.08±4.22"
+        ],
+        "path": "manuscript.pdf",
+        "page": 33,
+        "table": 23,
+        "row": 1
       }
     },
     {
@@ -3787,9 +4427,19 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 883,
-        "row_tex": "2 & \\result{62.88}{4.28} & \\result{63.28}{1.66} & \\result{67.36}{2.84} & \\result{68.72}{2.76} & \\result{+5.84}{4.35} & \\result{+0.96}{5.46} \\\\"
+        "label": "2",
+        "cells": [
+          "62.88±4.28",
+          "63.28±1.66",
+          "67.36±2.84",
+          "68.72±2.76",
+          "+5.84±4.35",
+          "+0.96±5.46"
+        ],
+        "path": "manuscript.pdf",
+        "page": 33,
+        "table": 23,
+        "row": 2
       }
     },
     {
@@ -3848,9 +4498,19 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 884,
-        "row_tex": "3 & \\result{48.40}{2.87} & \\result{49.28}{3.33} & \\result{54.00}{3.16} & \\result{59.68}{5.74} & \\result{+11.28}{4.61} & \\result{+4.80}{9.65} \\\\"
+        "label": "3",
+        "cells": [
+          "48.40±2.87",
+          "49.28±3.33",
+          "54.00±3.16",
+          "59.68±5.74",
+          "+11.28±4.61",
+          "+4.80±9.65"
+        ],
+        "path": "manuscript.pdf",
+        "page": 33,
+        "table": 23,
+        "row": 3
       }
     },
     {
@@ -3909,9 +4569,19 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 885,
-        "row_tex": "4 & \\result{40.16}{2.60} & \\result{42.32}{2.09} & \\result{44.56}{5.49} & \\result{52.80}{1.36} & \\result{+12.64}{3.23} & \\result{+6.08}{4.61} \\\\"
+        "label": "4",
+        "cells": [
+          "40.16±2.60",
+          "42.32±2.09",
+          "44.56±5.49",
+          "52.80±1.36",
+          "+12.64±3.23",
+          "+6.08±4.61"
+        ],
+        "path": "manuscript.pdf",
+        "page": 33,
+        "table": 23,
+        "row": 4
       }
     },
     {
@@ -3970,9 +4640,19 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 886,
-        "row_tex": "5 & \\result{32.72}{4.48} & \\result{35.44}{2.88} & \\result{38.80}{2.24} & \\result{45.20}{4.30} & \\result{+12.48}{4.17} & \\result{+3.68}{8.41} \\\\"
+        "label": "5",
+        "cells": [
+          "32.72±4.48",
+          "35.44±2.88",
+          "38.80±2.24",
+          "45.20±4.30",
+          "+12.48±4.17",
+          "+3.68±8.41"
+        ],
+        "path": "manuscript.pdf",
+        "page": 33,
+        "table": 23,
+        "row": 5
       }
     },
     {
@@ -4031,9 +4711,19 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 887,
-        "row_tex": "6 & \\result{24.00}{1.98} & \\result{26.32}{1.51} & \\result{28.96}{2.63} & \\result{37.12}{1.95} & \\result{+13.12}{2.92} & \\result{+5.84}{4.69} \\\\"
+        "label": "6",
+        "cells": [
+          "24.00±1.98",
+          "26.32±1.51",
+          "28.96±2.63",
+          "37.12±1.95",
+          "+13.12±2.92",
+          "+5.84±4.69"
+        ],
+        "path": "manuscript.pdf",
+        "page": 33,
+        "table": 23,
+        "row": 6
       }
     },
     {
@@ -4093,9 +4783,19 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 888,
-        "row_tex": "Slope & \\result{-10.17}{0.81} & \\result{-9.84}{0.25} & \\result{-9.93}{0.31} & \\result{-8.49}{0.40} & \\result{+1.68}{0.63}\\(^\\dagger\\) & \\result{+1.12}{1.28} \\\\"
+        "label": "Slope",
+        "cells": [
+          "-10.17±0.81",
+          "-9.84±0.25",
+          "-9.93±0.31",
+          "-8.49±0.40",
+          "+1.68±0.63†",
+          "+1.12±1.28"
+        ],
+        "path": "manuscript.pdf",
+        "page": 33,
+        "table": 23,
+        "row": 7
       }
     },
     {
@@ -4154,9 +4854,19 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 891,
-        "row_tex": "1 & \\result{59.73}{2.36} & \\result{61.13}{2.56} & \\result{62.81}{2.69} & \\result{66.21}{1.60} & \\result{+6.48}{2.24} & \\result{+2.01}{3.59} \\\\"
+        "label": "1",
+        "cells": [
+          "59.73±2.36",
+          "61.13±2.56",
+          "62.81±2.69",
+          "66.21±1.60",
+          "+6.48±2.24",
+          "+2.01±3.59"
+        ],
+        "path": "manuscript.pdf",
+        "page": 33,
+        "table": 23,
+        "row": 8
       }
     },
     {
@@ -4215,9 +4925,19 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 892,
-        "row_tex": "2 & \\result{42.52}{3.07} & \\result{43.31}{1.38} & \\result{46.07}{1.97} & \\result{49.06}{2.09} & \\result{+6.55}{3.31} & \\result{+2.20}{3.80} \\\\"
+        "label": "2",
+        "cells": [
+          "42.52±3.07",
+          "43.31±1.38",
+          "46.07±1.97",
+          "49.06±2.09",
+          "+6.55±3.31",
+          "+2.20±3.80"
+        ],
+        "path": "manuscript.pdf",
+        "page": 33,
+        "table": 23,
+        "row": 9
       }
     },
     {
@@ -4276,9 +4996,19 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 893,
-        "row_tex": "3 & \\result{27.38}{1.83} & \\result{28.40}{2.01} & \\result{31.11}{1.77} & \\result{36.91}{3.62} & \\result{+9.53}{2.88} & \\result{+4.78}{6.05} \\\\"
+        "label": "3",
+        "cells": [
+          "27.38±1.83",
+          "28.40±2.01",
+          "31.11±1.77",
+          "36.91±3.62",
+          "+9.53±2.88",
+          "+4.78±6.05"
+        ],
+        "path": "manuscript.pdf",
+        "page": 33,
+        "table": 23,
+        "row": 10
       }
     },
     {
@@ -4337,9 +5067,19 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 894,
-        "row_tex": "4 & \\result{18.15}{1.12} & \\result{19.69}{1.01} & \\result{20.91}{2.63} & \\result{27.46}{0.74} & \\result{+9.31}{1.42} & \\result{+5.01}{2.53} \\\\"
+        "label": "4",
+        "cells": [
+          "18.15±1.12",
+          "19.69±1.01",
+          "20.91±2.63",
+          "27.46±0.74",
+          "+9.31±1.42",
+          "+5.01±2.53"
+        ],
+        "path": "manuscript.pdf",
+        "page": 33,
+        "table": 23,
+        "row": 11
       }
     },
     {
@@ -4398,9 +5138,19 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 895,
-        "row_tex": "5 & \\result{11.09}{1.53} & \\result{12.60}{1.08} & \\result{14.13}{0.92} & \\result{19.17}{1.89} & \\result{+8.08}{1.70} & \\result{+3.53}{3.24} \\\\"
+        "label": "5",
+        "cells": [
+          "11.09±1.53",
+          "12.60±1.08",
+          "14.13±0.92",
+          "19.17±1.89",
+          "+8.08±1.70",
+          "+3.53±3.24"
+        ],
+        "path": "manuscript.pdf",
+        "page": 33,
+        "table": 23,
+        "row": 12
       }
     },
     {
@@ -4459,9 +5209,19 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 896,
-        "row_tex": "6 & \\result{5.49}{0.54} & \\result{6.57}{0.58} & \\result{7.17}{0.84} & \\result{12.05}{0.58} & \\result{+6.56}{0.81} & \\result{+3.80}{1.34} \\\\"
+        "label": "6",
+        "cells": [
+          "5.49±0.54",
+          "6.57±0.58",
+          "7.17±0.84",
+          "12.05±0.58",
+          "+6.56±0.81",
+          "+3.80±1.34"
+        ],
+        "path": "manuscript.pdf",
+        "page": 33,
+        "table": 23,
+        "row": 13
       }
     },
     {
@@ -4520,9 +5280,19 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 897,
-        "row_tex": "Slope & \\result{-10.71}{0.53} & \\result{-10.68}{0.34} & \\result{-10.98}{0.35} & \\result{-10.57}{0.32} & \\result{+0.14}{0.45} & \\result{+0.38}{0.75} \\\\"
+        "label": "Slope",
+        "cells": [
+          "-10.71±0.53",
+          "-10.68±0.34",
+          "-10.98±0.35",
+          "-10.57±0.32",
+          "+0.14±0.45",
+          "+0.38±0.75"
+        ],
+        "path": "manuscript.pdf",
+        "page": 33,
+        "table": 23,
+        "row": 14
       }
     },
     {
@@ -4553,9 +5323,15 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 916,
-        "row_tex": "Verified calculation accuracy & \\result{+3.14}{0.72} & \\result{+2.91}{0.67} \\\\"
+        "label": "Verified calculation accuracy",
+        "cells": [
+          "+3.14±0.72",
+          "+2.91±0.67"
+        ],
+        "path": "manuscript.pdf",
+        "page": 33,
+        "table": 24,
+        "row": 1
       }
     },
     {
@@ -4586,9 +5362,15 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 917,
-        "row_tex": "Grounded exact match & \\result{+7.82}{0.28} & \\result{+6.98}{0.55} \\\\"
+        "label": "Grounded exact match",
+        "cells": [
+          "+7.82±0.28",
+          "+6.98±0.55"
+        ],
+        "path": "manuscript.pdf",
+        "page": 33,
+        "table": 24,
+        "row": 2
       }
     },
     {
@@ -4619,9 +5401,15 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 918,
-        "row_tex": "MedAgent\\-Bench task success & \\result{+10.13}{1.59} & \\result{+9.33}{1.76} \\\\"
+        "label": "MedAgentBench task success",
+        "cells": [
+          "+10.13±1.59",
+          "+9.33±1.76"
+        ],
+        "path": "manuscript.pdf",
+        "page": 33,
+        "table": 24,
+        "row": 3
       }
     },
     {
@@ -4652,9 +5440,15 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 919,
-        "row_tex": "MedAgent\\-Bench cost-normalized success & \\result{+11.17}{0.58} & \\result{+10.63}{1.76} \\\\"
+        "label": "MedAgentBench cost-normalized success",
+        "cells": [
+          "+11.17±0.58",
+          "+10.63±1.76"
+        ],
+        "path": "manuscript.pdf",
+        "page": 33,
+        "table": 24,
+        "row": 4
       }
     },
     {
@@ -4685,9 +5479,15 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 920,
-        "row_tex": "EHRSHOT mean AUPRC & \\result{+3.33}{0.25} & \\result{+3.35}{0.48} \\\\"
+        "label": "EHRSHOT mean AUPRC",
+        "cells": [
+          "+3.33±0.25",
+          "+3.35±0.48"
+        ],
+        "path": "manuscript.pdf",
+        "page": 33,
+        "table": 24,
+        "row": 5
       }
     },
     {
@@ -4718,9 +5518,15 @@
         }
       ],
       "source": {
-        "path": "Tex/appendix.tex",
-        "line": 921,
-        "row_tex": "EHRSHOT mean AUROC & \\result{+3.42}{0.24} & \\result{+3.12}{0.63} \\\\"
+        "label": "EHRSHOT mean AUROC",
+        "cells": [
+          "+3.42±0.24",
+          "+3.12±0.63"
+        ],
+        "path": "manuscript.pdf",
+        "page": 33,
+        "table": 24,
+        "row": 6
       }
     }
   ]

@@ -65,6 +65,12 @@ def validate_results(result: dict, events: list[dict]) -> None:
     if sft[-1]["loss"] >= sft[0]["loss"]:
         raise ValueError("measured SFT loss did not decrease")
     gradient = events[-1]["gradient_norm"]
+    if (
+        events[-1].get("policy_objective") != "log_policy"
+        or events[-1].get("kl_mode") != "forward_full_vocabulary"
+        or events[-1].get("kl_weight") != 0.01
+    ):
+        raise ValueError("VAPA trace must identify the revised Eq. 9 objective")
     if not math.isfinite(gradient) or gradient <= 0:
         raise ValueError("invalid measured VAPA gradient")
     for check in (
@@ -215,7 +221,7 @@ def run(output: Path, *, seed: int = 7, steps: int = 16) -> tuple[dict, list[dic
     reference.eval()
     optimizer.zero_grad()
     loss = actor.vapa_loss(
-        batch, reference=reference, kl_weight=0.01, ratio_clip=None, kl_mode="k3"
+        batch, reference=reference, kl_weight=0.01, ratio_clip=None, kl_mode="forward"
     )
     loss.backward()
     gradient_norm = actor.clip_grad_norm(1.0)
@@ -250,6 +256,9 @@ def run(output: Path, *, seed: int = 7, steps: int = 16) -> tuple[dict, list[dic
             "action_tokens": loss.token_count,
             "advantages": [1.0, -0.5, 0.25],
             "advantages_source": "fixed_test_inputs_not_environment_rewards",
+            "policy_objective": "log_policy",
+            "kl_mode": "forward_full_vocabulary",
+            "kl_weight": 0.01,
         }
     )
     result = {

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-import statistics
+import struct
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
@@ -40,9 +40,38 @@ def credit_return(
     return rollout.outcome_reward - cost_weight * costs + process_weight * process
 
 
+def _fp32(value: float) -> float:
+    """Round a scalar to IEEE binary32 without adding a core runtime dependency."""
+
+    try:
+        result = struct.unpack("f", struct.pack("f", value))[0]
+    except (OverflowError, struct.error) as error:
+        raise ValueError("advantage arithmetic must remain finite in FP32") from error
+    if not math.isfinite(result):
+        raise ValueError("advantage arithmetic must remain finite in FP32")
+    return result
+
+
+def _mean_fp32(values: list[float]) -> float:
+    total = 0.0
+    for value in values:
+        total = _fp32(total + value)
+    return _fp32(total / len(values))
+
+
 def _population_std(values: Iterable[float]) -> float:
-    collected = list(values)
-    return statistics.pstdev(collected) if collected else 0.0
+    """Two-pass population SD with FP32 operations and stable input ordering."""
+
+    collected = [_fp32(value) for value in values]
+    if not collected:
+        return 0.0
+    mean = _mean_fp32(collected)
+    squared = [_fp32(_fp32(value - mean) ** 2) for value in collected]
+    return _fp32(math.sqrt(_mean_fp32(squared)))
+
+
+def _normalize(value: float, scale: float, epsilon: float) -> float:
+    return _fp32(_fp32(value) / _fp32(scale + _fp32(epsilon)))
 
 
 def _validate_weights(**weights: float) -> None:
@@ -51,6 +80,8 @@ def _validate_weights(**weights: float) -> None:
             raise ValueError(
                 f"{name} must be finite and {'positive' if name == 'epsilon' else 'nonnegative'}"
             )
+        if name == "epsilon" and _fp32(value) <= 0:
+            raise ValueError("epsilon must be representable as a positive FP32 value")
 
 
 def assign_step_advantages(
@@ -97,7 +128,7 @@ def assign_step_advantages(
         scale = _population_std(raw.values())
         episode_scales[instance_id] = scale
         for rollout_id, value in raw.items():
-            normalized_episode[rollout_id] = value / (scale + epsilon)
+            normalized_episode[rollout_id] = _normalize(value, scale, epsilon)
 
     # Local leave-one-out term over each complete group.
     local_raw: dict[TurnRef, float] = {}
@@ -135,14 +166,14 @@ def assign_step_advantages(
         for turn in rollout.turns:
             reference = TurnRef(rollout.rollout_id, turn.index)
             local = local_raw.get(reference, 0.0)
-            normalized_local = local / (local_scale + epsilon)
+            normalized_local = _normalize(local, local_scale, epsilon)
             episode = normalized_episode.get(rollout.rollout_id, 0.0)
             turn.local_advantage = local
             turn.episode_advantage = episode
             if rollout.is_base:
-                turn.normalized_advantage = episode + beta * normalized_local
+                turn.normalized_advantage = _fp32(episode + _fp32(beta * normalized_local))
             else:
-                turn.normalized_advantage = beta * normalized_local
+                turn.normalized_advantage = _fp32(beta * normalized_local)
                 if reference not in local_raw:
                     turn.loss_mask = False
             if turn.copied_prefix or turn.action is None or turn.decision is None:
@@ -191,7 +222,7 @@ def assign_trajectory_advantages(
         advantages = [value - mean_return for value in returns]
         scale = _population_std(advantages)
         for rollout, advantage in zip(members, advantages, strict=True):
-            normalized = advantage / (scale + epsilon)
+            normalized = _normalize(advantage, scale, epsilon)
             for turn in rollout.turns:
                 turn.episode_advantage = normalized
                 turn.local_advantage = 0.0

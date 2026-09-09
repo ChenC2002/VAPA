@@ -531,7 +531,7 @@ def binary_task_metrics(
     for system_id in system_ids:
         run_keys = sorted(
             {seed for candidate_system, seed, _ in scored if candidate_system == system_id},
-            key=lambda seed: (-1 if seed is None else seed),
+            key=lambda seed: -1 if seed is None else seed,
         )
         runs: dict[str, object] = {}
         for seed in run_keys:

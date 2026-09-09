@@ -1,6 +1,6 @@
 {
   "compact": true,
-  "implementation_sha256": "8cf150347086269c99403e40b28f1827f12917f7aad59e2ff2c7148d015c02be",
+  "implementation_sha256": "67628c8885afd338d9776eb82ef4339c97262d8ea674c4becb25d9b7c5bd0e5b",
   "inputs": {
     "tiny_analysis_manifest.json": {
       "sha256": "280dbdf6c59361d3492c14016ecaee80ed1d3bc03fd5aba5dfc589d9ea7b4498",
@@ -54,7 +54,7 @@
           "canonical_collision": 6,
           "exact_fork": 2
         },
-        "local_scale": 0.031355302691230894,
+        "local_scale": 0.031355299055576324,
         "paper_exact": false,
         "predictions": [
           6.4,

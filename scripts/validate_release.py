@@ -65,7 +65,10 @@ def main() -> int:
         "schema_version": 1,
         "catalog_id": catalog.catalog_id,
         "paper_exact": catalog.paper_exact,
-        "warning": "The paper does not publish the complete predicate list or numerical weights.",
+        "warning": (
+            "The fourteen-predicate companion specification is not bundled; "
+            "this is a seven-predicate demo catalog."
+        ),
         "weights": weights,
         "families": families,
     }

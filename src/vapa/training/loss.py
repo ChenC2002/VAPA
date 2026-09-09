@@ -1,4 +1,4 @@
-"""Backend-neutral token objective with an explicit KL convention."""
+"""Dependency-free reference for the log-policy objective and forward KL (Eq. 9)."""
 
 from __future__ import annotations
 
@@ -15,63 +15,61 @@ class TokenObjective:
     token_count: int
 
 
-def _k3_kl(policy_log_prob: float, reference_log_prob: float) -> float:
-    log_ratio = reference_log_prob - policy_log_prob
-    return math.exp(log_ratio) - log_ratio - 1.0
+def forward_kl(policy: Iterable[float], reference: Iterable[float]) -> float:
+    """Exact KL over normalized, identically masked next-token log distributions."""
+
+    rows = list(zip(policy, reference, strict=True))
+    if not rows:
+        raise ValueError("KL requires a nonempty vocabulary")
+    for column in zip(*rows, strict=True):
+        if any(value > 0 or (not math.isfinite(value) and value != -math.inf) for value in column):
+            raise ValueError("log distributions must contain nonpositive values or -inf")
+        if not math.isclose(math.fsum(math.exp(value) for value in column), 1.0, abs_tol=1e-6):
+            raise ValueError("log distributions must be normalized over the legal vocabulary")
+    if any((policy == -math.inf) != (reference == -math.inf) for policy, reference in rows):
+        raise ValueError("actor and reference must share the same legal vocabulary")
+    return math.fsum(
+        math.exp(policy) * (policy - reference) for policy, reference in rows if policy != -math.inf
+    )
 
 
 def token_objective(
-    new_log_probs: Iterable[float],
-    behavior_log_probs: Iterable[float],
-    reference_log_probs: Iterable[float],
+    action_log_probs: Iterable[float],
+    policy_log_distributions: Iterable[Iterable[float]],
+    reference_log_distributions: Iterable[Iterable[float]],
     advantages: Iterable[float],
     masks: Iterable[bool],
     *,
     kl_weight: float = 0.01,
-    ratio_clip: float | None = None,
-    kl_mode: str = "k3",
 ) -> TokenObjective:
-    """Compute the token-mean actor objective.
-
-    ``ratio_clip=None`` is the paper-compatible default because Appendix A.7 says no
-    PPO ratio clipping.  The exact KL estimator is absent from the PDF; ``k3`` is an
-    explicit, configurable convention rather than a reproduction claim.
-    """
+    """Compute the token-mean Eq. 9 loss with fixed advantages and eligibility masks."""
 
     rows = list(
         zip(
-            new_log_probs,
-            behavior_log_probs,
-            reference_log_probs,
+            action_log_probs,
+            policy_log_distributions,
+            reference_log_distributions,
             advantages,
             masks,
             strict=True,
         )
     )
+    if any(not isinstance(row[-1], bool) for row in rows):
+        raise TypeError("objective masks must be boolean")
     kept = [row for row in rows if row[-1]]
     if not kept:
         raise ValueError("objective has no unmasked tokens")
     if not math.isfinite(kl_weight) or kl_weight < 0:
         raise ValueError("kl_weight must be finite and nonnegative")
-    if ratio_clip is not None and (not math.isfinite(ratio_clip) or ratio_clip < 0):
-        raise ValueError("ratio_clip must be finite and nonnegative")
     policy_terms: list[float] = []
     kl_terms: list[float] = []
-    for new, old, reference, advantage, _ in kept:
-        if not all(math.isfinite(value) for value in (new, old, reference, advantage)):
+    for action, policy_distribution, reference_distribution, advantage, _ in kept:
+        if not all(math.isfinite(value) for value in (action, advantage)):
             raise ValueError("unmasked objective inputs must be finite")
-        ratio = math.exp(new - old)
-        surrogate = ratio * advantage
-        if ratio_clip is not None:
-            clipped = min(max(ratio, 1.0 - ratio_clip), 1.0 + ratio_clip)
-            surrogate = min(surrogate, clipped * advantage)
-        policy_terms.append(-surrogate)
-        if kl_mode == "k3":
-            kl_terms.append(_k3_kl(new, reference))
-        elif kl_mode == "log_ratio":
-            kl_terms.append(new - reference)
-        else:
-            raise ValueError(f"unknown KL mode: {kl_mode}")
-    policy = sum(policy_terms) / len(policy_terms)
-    kl = sum(kl_terms) / len(kl_terms)
+        if action > 0:
+            raise ValueError("action log probabilities must be nonpositive")
+        policy_terms.append(-advantage * action)
+        kl_terms.append(forward_kl(policy_distribution, reference_distribution))
+    policy = math.fsum(policy_terms) / len(policy_terms)
+    kl = math.fsum(kl_terms) / len(kl_terms)
     return TokenObjective(policy, kl, policy + kl_weight * kl, len(kept))

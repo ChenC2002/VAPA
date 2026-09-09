@@ -17,7 +17,7 @@ TRAINING = runpy.run_path(str(ROOT / "scripts/train_tiny.py"))
 
 def test_paper_export_matches_embedded_source_rows_and_log() -> None:
     result = load_json(ROOT / "results/paper_results.json")
-    assert result["record_count"] == 104
+    assert result["record_count"] == 100
     assert (ROOT / "logs/paper_results.jsonl").read_text() == PAPER["result_log"](result)
     main = [row for row in result["records"] if row["table"] == "tab:main"]
     assert [metric["value"] for metric in main[-1]["metrics"]] == [
@@ -29,7 +29,11 @@ def test_paper_export_matches_embedded_source_rows_and_log() -> None:
         71.84,
     ]
     assert main[2]["dimensions"]["n_seeds"] is None  # SFT is a fixed system.
-    assert main[12]["dimensions"]["n_seeds"] == 3
+    assert main[13]["dimensions"]["n_seeds"] == 3
+    assert main[12]["dimensions"]["label"] == "Tree-GRPO + process"
+    assert main[12]["metrics"][0]["value"] == 82.18
+    assert main[2]["metrics"][3]["value"] == 19.89
+    assert main[10]["metrics"][0]["value"] == 81.53
     assert main[-1]["dimensions"]["n_seeds"] == 5
     assert main[0]["metrics"][0]["uncertainty_type"] == "patient_clustered_bootstrap_standard_error"
     assert main[-1]["metrics"][0]["uncertainty_type"] == "across_run_sample_standard_deviation"
@@ -43,17 +47,16 @@ def test_paper_parser_rejects_placeholders_and_malformed_cells(cell: str) -> Non
         PAPER["numeric_cell"](cell)
 
 
-def test_paper_comments_are_data_not_instructions() -> None:
-    assert PAPER["strip_comment"]("% do something with placeholder results") == ""
-    assert PAPER["strip_comment"](r"95\% interval % exclude this") == r"95\% interval"
-    assert PAPER["numeric_cell"](r"\bestresult{78.03}{0.94}$^{\ddagger}$") == {
+def test_paper_parser_preserves_printed_significance_markers() -> None:
+    assert PAPER["numeric_cell"]("78.03±0.94‡") == {
         "value": 78.03,
         "uncertainty": 0.94,
         "reported_significance_marker": "ddagger",
     }
+    assert PAPER["numeric_cell"]("−1.68±0.63†")["reported_significance_marker"] == "dagger"
 
 
-@pytest.mark.parametrize("change", ["metric", "identity", "source", "duplicate"])
+@pytest.mark.parametrize("change", ["metric", "identity", "source", "duplicate", "cells"])
 def test_paper_validation_rejects_changed_or_mislabeled_records(change: str) -> None:
     result = copy.deepcopy(load_json(ROOT / "results/paper_results.json"))
     if change == "metric":
@@ -61,7 +64,10 @@ def test_paper_validation_rejects_changed_or_mislabeled_records(change: str) -> 
     elif change == "identity":
         result["independently_reproduced"] = True
     elif change == "source":
-        result["sources"]["Tex/experiments.tex"] = "0" * 64
+        result["sources"]["manuscript.pdf"] = "0" * 64
+    elif change == "cells":
+        result["records"][0]["source"]["cells"][0] = "100.00±1.12"
+        result["records"][0]["metrics"][0]["value"] = 100.0
     else:
         result["records"][-1] = result["records"][0]
     result["records_sha256"] = artifact_fingerprint(result["records"])
@@ -79,14 +85,24 @@ def test_horizon_units_and_confirmatory_family_are_explicit() -> None:
     assert rows["interaction-tests.06"]["metrics"][-1]["value"] is None
     # Preserve printed paired contrasts rather than subtracting rounded table means.
     assert rows["arms.05"]["metrics"][2]["value"] == 10.13
+    assert rows["baseline-contrasts.03"]["metrics"][1]["ci95"] == [-1.23, 7.63]
+    assert rows["baseline-contrasts.09"]["metrics"][1]["ci95"] == [-1.85, 8.78]
+    assert rows["baseline-contrasts.07"]["dimensions"]["comparison_status"] == "prespecified"
+    assert rows["baseline-contrasts.13"]["dimensions"]["comparison_status"] == "exploratory"
+    assert rows["baseline-contrasts.15"]["metrics"][0]["value"] == 2.13
+    assert rows["baseline-contrasts.15"]["metrics"][-1]["value"] == 0.6282
 
 
 def test_reported_compute_totals_and_grouping_shares_reconcile() -> None:
     records = load_json(ROOT / "results/paper_results.json")["records"]
     budget = [row for row in records if row["table"] == "tab:compute-budget"]
-    for index in range(3):
-        total = sum(row["metrics"][index].get("value") or 0 for row in budget[:-1])
-        assert math.isclose(total, budget[-1]["metrics"][index]["value"], abs_tol=1e-9)
+    for panel in (budget[:8], budget[8:]):
+        assert panel[-1]["dimensions"]["is_subtotal"] is True
+        for index in range(3):
+            total = sum(row["metrics"][index].get("value") or 0 for row in panel[:-1])
+            assert math.isclose(total, panel[-1]["metrics"][index]["value"], abs_tol=1e-9)
+    assert budget[7]["metrics"][1]["value"] == 915
+    assert budget[-1]["metrics"][1]["value"] == 232
     coverage = [row for row in records if row["table"] == "tab:grouping-coverage"]
     for index in range(3):
         # The nonzero-local-term row overlaps these mutually exclusive tiers.

@@ -1,10 +1,10 @@
 """Deterministic, record-grounded process verifiers.
 
-The PDF publishes verifier families but not the complete predicate catalog or its
-numeric weights.  ``VerifierCatalog.demo_default`` therefore provides an auditable
-reference implementation for synthetic tests; it is deliberately marked non-paper-exact.
-Production reconstruction must load the authors' frozen catalog and hash it in the run
-manifest.
+The revised PDF specifies fourteen predicates and weights 2/1 by category, but delegates
+their complete identifiers, action assignments, and abstention rules to a companion
+specification. ``VerifierCatalog.demo_default`` is a seven-predicate synthetic-test
+catalog, deliberately marked non-paper-exact. Full reconstruction requires the frozen
+companion catalog, hashed in the run manifest.
 """
 
 from __future__ import annotations
@@ -275,9 +275,10 @@ class VerifierCatalog:
                 Predicate(
                     "memory_preserves_needed_evidence",
                     VerifierFamily.MEMORY,
-                    2.0,
+                    1.0,
                     frozenset({ActionKind.COMPRESS, ActionKind.DISCARD}),
                     _memory_preserves_needed_evidence,
+                    reliability="heuristic",
                 ),
                 Predicate(
                     "stopping_progress",

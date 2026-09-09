@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Export reviewed numeric manuscript tables (never training logs).
 
-The deliberately narrow parser rejects a changed table shape or unsupported numeric
-cell. Embedded source rows let release checks re-parse every published value without
-requiring the private manuscript. Original source hashes bind external verification.
+Reviewed PDF cells are embedded with page/table/row locations. Validation reparses
+those cells and checks the reviewed digest; it does not claim automatic PDF extraction
+or independent reproduction. --source additionally verifies the original PDF hash.
 """
 
 from __future__ import annotations
@@ -34,24 +34,24 @@ ENDPOINTS = (
     "ehrshot_mean_auprc",
     "ehrshot_mean_auroc",
 )
-# label: (file, expected rows, ordered metric names, ordered units)
+# label: ((PDF page, table number), expected rows, ordered metric names, ordered units)
 TABLES = {
-    "main": ("experiments", 15, ENDPOINTS, ("percent",) * 6),
-    "arms": ("experiments", 6, ENDPOINTS, ("percent",) * 6),
+    "main": ((6, 1), 16, ENDPOINTS, ("percent",) * 6),
+    "arms": ((7, 2), 6, ENDPOINTS, ("percent",) * 6),
     "replay-effects": (
-        "appendix",
+        (23, 11),
         8,
         ("replay", "no_fork", "gain"),
         ("percent", "percent", "percentage_points"),
     ),
     "grouping-coverage": (
-        "appendix",
+        (24, 12),
         5,
         ("A2", "A4", "pooled"),
         ("fraction",) * 3,
     ),
     "compute-efficiency": (
-        "appendix",
+        (25, 13),
         8,
         (
             "training_gpu_hours",
@@ -63,38 +63,32 @@ TABLES = {
         ),
         ("device_hours", "tokens_per_second", "GiB", "actions", "tokens", "seconds"),
     ),
-    "compute-ledger": (
-        "appendix",
-        12,
-        ("runs", "sampled_tokens_per_second", "gpu_hours_per_run", "gpu_hours"),
-        ("count", "tokens_per_second", "device_hours", "device_hours"),
-    ),
     "compute-budget": (
-        "appendix",
-        11,
+        (25, 14),
+        12,
         ("runs", "gpu_hours", "rl_tokens"),
         ("count", "device_hours", "billion_tokens"),
     ),
     "interaction-tests": (
-        "appendix",
+        (27, 15),
         7,
         ("estimate", "confidence_interval", "p_value", "holm_p_value"),
         ("percentage_points", "percentage_points", "probability", "probability"),
     ),
     "baseline-contrasts": (
-        "appendix",
-        12,
+        (28, 16),
+        18,
         ("estimate", "confidence_interval", "p_value", "holm_p_value"),
         ("percentage_points", "percentage_points", "probability", "probability"),
     ),
     "horizon": (
-        "appendix",
+        (33, 23),
         14,
         ("A1", "A2", "A3", "A4", "A4_minus_A1", "interaction"),
         ("percent",) * 4 + ("percentage_points",) * 2,
     ),
     "backbone-contrast": (
-        "appendix",
+        (33, 24),
         6,
         ("qwen3_5_9b", "gpt_oss_20b"),
         ("percentage_points",) * 2,
@@ -102,29 +96,16 @@ TABLES = {
 }
 NUMBER = r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)"
 REVIEWED_SOURCES = {
-    "Tex/experiments.tex": "4ac3fb1e8dbe7dff244d36c47665ba00dab7d41a8b42b89214d6f60e415ff833",
-    "Tex/appendix.tex": "7dc25363ed73929aba47308ff7eb20486d7db79363c605a664bbccc9440a5b3e",
+    "manuscript.pdf": "5689aed86890a80516fd5e4d6462a4c73caa0fb2f8471da68397b58750340dc7",
 }
-
-
-def strip_comment(line: str) -> str:
-    # An even number of preceding backslashes means '%' starts a TeX comment.
-    return re.split(r"(?<!\\)(?:\\\\)*%", line, maxsplit=1)[0].strip()
+REVIEWED_RECORDS_SHA256 = "504942bb73346c8a2288d0d695ef49deb1eec0d4b8bede4f4ad8ba99d41467cd"
 
 
 def numeric_cell(cell: str) -> dict[str, object]:
     original = cell.strip()
-    text = original.replace("{,}", "")
-    text = re.sub(
-        r"\\(?:bestresult|baselineresult|result)\{(" + NUMBER + r")\}\{(" + NUMBER + r")\}",
-        r"\1±\2",
-        text,
-    )
-    for marker in (r"$", r"\(", r"\)"):
-        text = text.replace(marker, "")
-    text = re.sub(r"\^\{?\\(?:ddagger|dagger)\}?", "", text)
-    text = text.replace(r"\pm", "±").replace(r"\mathrm{NA}", "NA").strip()
-    if text in {"--", "NA"}:
+    text = original.replace("−", "-")
+    text = text.replace("†", "").replace("‡", "")
+    if text in {"--", "–", "NA"}:
         return {"value": None, "missing_reason": "not_reported"}
     interval = re.fullmatch(
         r"(?:((?:"
@@ -154,30 +135,16 @@ def numeric_cell(cell: str) -> dict[str, object]:
         if float(uncertainty) < 0:
             raise ValueError("negative uncertainty")
         result["uncertainty"] = float(uncertainty)
-    if r"\ddagger" in original or r"\dagger" in original:
-        result["reported_significance_marker"] = "ddagger" if r"\ddagger" in original else "dagger"
+    if "‡" in original or "†" in original:
+        result["reported_significance_marker"] = "ddagger" if "‡" in original else "dagger"
     return result
-
-
-def display_text(text: str) -> str:
-    for macro, value in {
-        "armone": "A1",
-        "armtwo": "A2",
-        "armthree": "A3",
-        "armfour": "A4",
-        "modelname": "VAPA",
-    }.items():
-        text = text.replace("\\" + macro + "{}", value)
-    text = re.sub(r"\\citeyearpar\{[^}]+\}", "", text)
-    text = text.replace(r"\-", "").replace(r"\(", "").replace(r"\)", "")
-    return " ".join(text.replace("$", "").split()).strip()
 
 
 def make_record(table: str, index: int, source: dict[str, object]) -> dict[str, object]:
     _, _, names, units = TABLES[table]
-    cells = str(source["row_tex"]).removesuffix(r"\\").split("&")
+    cells = source["cells"]
     metrics = []
-    for name, unit, cell in zip(names, units, cells[-len(names) :], strict=True):
+    for name, unit, cell in zip(names, units, cells, strict=True):
         metric = {"name": name, "unit": unit, **numeric_cell(cell)}
         if table == "arms" and index >= 4:
             metric["unit"] = "percentage_points"
@@ -198,16 +165,22 @@ def make_record(table: str, index: int, source: dict[str, object]) -> dict[str, 
         if "ci95" in metric or name == "confidence_interval":
             metric["interval_type"] = "paired_seed_t_95_percent"
         metrics.append(metric)
-    # Last label column is the actual method/endpoint, not a multirow family label.
-    label = display_text(cells[-len(names) - 1])
-    dimensions: dict[str, object] = {"label": label}
+    dimensions: dict[str, object] = {"label": source["label"]}
     if table in {"main", "compute-efficiency"}:
-        other = index in ({12, 13} if table == "main" else {5, 6, 7})
+        other = index in ({13, 14} if table == "main" else {5, 6, 7})
         dimensions["backbone"] = "gpt-oss-20b" if other else "Qwen3.5-9B"
         dimensions["n_seeds"] = (
             (None if index < 7 else 3 if other else 5)
             if table == "main"
             else (None if index in {0, 5} else 3 if other else 5)
+        )
+        if table == "compute-efficiency" and 1 <= index <= 4:
+            dimensions["throughput_basis"] = "additive_model_estimate"
+    elif table == "compute-budget":
+        dimensions.update(
+            panel="fixed_configuration_reproduction" if index < 8 else "search_and_screening",
+            is_subtotal=index in {7, 11},
+            accounting_basis="paper_reported_nominal_and_reconstructed",
         )
     elif table == "arms":
         dimensions = {
@@ -226,7 +199,10 @@ def make_record(table: str, index: int, source: dict[str, object]) -> dict[str, 
     elif table == "baseline-contrasts":
         dimensions.update(
             endpoint=ENDPOINTS[index % 6],
-            family="strongest_reference" if index < 6 else "adapted_vineppo",
+            family=("previously_selected_references", "adapted_vineppo", "tree_grpo_process")[
+                index // 6
+            ],
+            comparison_status="prespecified" if 6 <= index < 12 else "exploratory",
             n_seeds=5,
         )
     elif table == "interaction-tests":
@@ -247,67 +223,44 @@ def make_record(table: str, index: int, source: dict[str, object]) -> dict[str, 
     }
 
 
-def extract_tables(source_root: Path) -> dict[str, object]:
+def build_results(source_rows: dict[str, list[dict[str, object]]]) -> dict[str, object]:
+    """Rebuild metrics from reviewed cells, not from an automated PDF/TeX parser."""
+
     records = []
-    sources = {}
-    for file in ("experiments", "appendix"):
-        path = source_root / "Tex" / f"{file}.tex"
-        sources[f"Tex/{file}.tex"] = fingerprint_file(path).sha256
-        if sources[f"Tex/{file}.tex"] != REVIEWED_SOURCES[f"Tex/{file}.tex"]:
-            raise ValueError("unreviewed manuscript revision; review table mappings before export")
-        lines = [strip_comment(line) for line in path.read_text(encoding="utf-8").splitlines()]
-        for table, (source_file, count, names, _) in TABLES.items():
-            if source_file != file:
-                continue
-            labels = [i for i, line in enumerate(lines) if line == f"\\label{{tab:{table}}}"]
-            if len(labels) != 1:
-                raise ValueError(f"expected exactly one tab:{table}")
-            start = labels[0]
-            stop = next(i for i in range(start, len(lines)) if lines[i].startswith(r"\end{table"))
-            index = 0
-            for line_number in range(start + 1, stop):
-                line = lines[line_number]
-                if not line.endswith(r"\\") or line.count("&") < len(names):
-                    continue
-                cells = line.removesuffix(r"\\").split("&")[-len(names) :]
-                # Headers cannot start with a numeric literal/result macro. Once a
-                # numeric body row is recognized every cell must parse, or fail closed.
-                if not re.match(
-                    r"^(?:[+\-\d.]|\$[+\-\d.]|\\(?:result|bestresult|baselineresult)|\\\((?:[+\-\d.]|\\mathrm\{NA\}))",
-                    cells[0].strip(),
-                ):
-                    continue
-                source = {"path": f"Tex/{file}.tex", "line": line_number + 1, "row_tex": line}
-                records.append(make_record(table, index, source))
-                index += 1
-            if index != count:
-                raise ValueError(f"tab:{table}: expected {count} numeric rows, found {index}")
+    if set(source_rows) != set(TABLES):
+        raise ValueError("unexpected reviewed table selection")
+    for table in TABLES:
+        records.extend(
+            make_record(table, index, row) for index, row in enumerate(source_rows[table])
+        )
     return {
         "schema_version": "vapa-paper-results-v1",
         "project": "VAPA",
         "paper_title": "Where Credit Lands: Step-Level Advantages for Bounded-Memory EHR Agents",
-        "source_version": "manuscript-review-v1",
+        "source_version": "manuscript-review-v2",
         "kind": "paper_reported",
         "independently_reproduced": False,
-        "sources": sources,
+        "sources": dict(REVIEWED_SOURCES),
+        "transcription_method": "visually_reviewed_pdf_cells",
         "coverage": {
             "included_tables": [f"tab:{name}" for name in TABLES],
             "excluded": [
                 "Other appendix tables and narrative-only values",
                 "Plot-only learning curves and diagnostics: original numeric arrays unavailable",
-                "Commented-out draft scaffolds and unfinished experiments",
+                "Superseded compute-ledger table from the previous manuscript version",
                 "Per-seed observations, raw optimizer traces, and checkpoints: not supplied",
             ],
         },
         "caveats": [
-            "Draft manuscript transcription, not empirical verification "
-            "or a run of this repository.",
+            "Reviewed PDF transcription, not empirical verification or a run of this repository.",
             "Printed paired contrasts use unrounded per-seed values; "
             "subtracting rounded means can differ by 0.01 points.",
             "Fixed-system uncertainties are bootstrap standard errors; trained-system "
             "uncertainties are sample standard deviations, not interchangeable.",
             "Compute accounting mixes directly reported measurements and reconstructed "
             "accounting; underlying per-run compute artifacts were not supplied.",
+            "Qwen factorial throughput entries are additive-model estimates. "
+            "Compute Table 14 separates reproduction allowance from search and screening.",
             "Reported significance is transcribed, not recomputed from unavailable per-seed data.",
         ],
         "record_count": len(records),
@@ -322,12 +275,15 @@ def validate_results(result: dict[str, object]) -> None:
         or result.get("kind") != "paper_reported"
         or result.get("independently_reproduced") is not False
         or result.get("sources") != REVIEWED_SOURCES
-        or result.get("source_version") != "manuscript-review-v1"
+        or result.get("source_version") != "manuscript-review-v2"
+        or result.get("transcription_method") != "visually_reviewed_pdf_cells"
     ):
         raise ValueError("invalid paper-result identity or reproduction claim")
     records = result["records"]
-    if result["record_count"] != len(records) or result["records_sha256"] != artifact_fingerprint(
-        records
+    if (
+        result["record_count"] != len(records)
+        or result["records_sha256"] != artifact_fingerprint(records)
+        or result["records_sha256"] != REVIEWED_RECORDS_SHA256
     ):
         raise ValueError("paper-result count or checksum mismatch")
     for table, (_, expected, _, _) in TABLES.items():
@@ -337,10 +293,15 @@ def validate_results(result: dict[str, object]) -> None:
         for index, record in enumerate(selected):
             source = record["source"]
             if (
-                source["path"] != f"Tex/{TABLES[table][0]}.tex"
-                or type(source["line"]) is not int
-                or source["line"] < 1
-                or source["row_tex"] != strip_comment(source["row_tex"])
+                set(source) != {"path", "page", "table", "row", "label", "cells"}
+                or source["path"] != "manuscript.pdf"
+                or (source["page"], source["table"]) != TABLES[table][0]
+                or type(source["row"]) is not int
+                or source["row"] != index + 1
+                or not isinstance(source["label"], str)
+                or not source["label"].strip()
+                or not isinstance(source["cells"], list)
+                or any(not isinstance(cell, str) for cell in source["cells"])
             ):
                 raise ValueError("invalid paper-result source location")
             if record != make_record(table, index, record["source"]):
@@ -367,7 +328,7 @@ def result_log(result: dict[str, object]) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--source", type=Path, help="review manuscript directory; verifies original files"
+        "--source", type=Path, help="reviewed manuscript PDF; verifies its original hash"
     )
     parser.add_argument(
         "--write", action="store_true", help="replace the reviewed paper-result snapshots"
@@ -377,13 +338,21 @@ def main() -> int:
         parser.error("--write requires --source")
     summary = ROOT / "results/paper_results.json"
     log = ROOT / "logs/paper_results.jsonl"
-    saved = None if args.write else strict_json_loads(summary.read_bytes())
-    result = extract_tables(args.source) if args.source is not None else saved
+    saved = strict_json_loads(summary.read_bytes())
+    if args.source is not None:
+        if fingerprint_file(args.source).sha256 != REVIEWED_SOURCES["manuscript.pdf"]:
+            raise ValueError("unreviewed manuscript revision; review table mappings before export")
+    result = build_results(
+        {
+            table: [row["source"] for row in saved["records"] if row["table"] == f"tab:{table}"]
+            for table in TABLES
+        }
+    )
     validate_results(result)
     if args.write:
         validate_output_paths(
             [summary, log],
-            inputs=[args.source / path for path in REVIEWED_SOURCES],
+            inputs=[args.source],
             overwrite=True,
         )
         atomic_write_text(log, result_log(result))

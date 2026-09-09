@@ -345,22 +345,22 @@ def test_token_ledger_never_splits_groups_and_tracks_overshoot() -> None:
     ]
     assert [[item.group_id for item in update] for update in ledger.loss_updates] == [
         ["g1", "g2"],
-        [],
+        ["g3"],
     ]
 
 
-def test_token_objective_masks_and_uses_explicit_no_clip_default() -> None:
+def test_token_objective_masks_and_uses_exact_log_policy_loss() -> None:
     result = token_objective(
-        [0.0, 10.0],
-        [0.0, 0.0],
-        [0.0, 0.0],
+        [math.log(0.5), 10.0],
+        [[math.log(0.5)] * 2, []],
+        [[math.log(0.5)] * 2, []],
         [2.0, 100.0],
         [True, False],
     )
     assert result.token_count == 1
-    assert result.policy == -2.0
+    assert result.policy == pytest.approx(2.0 * math.log(2.0))
     assert result.kl == 0.0
-    assert result.total == -2.0
+    assert result.total == result.policy
 
 
 def test_statistical_helpers_follow_paired_seed_and_holm_conventions() -> None:
@@ -372,28 +372,25 @@ def test_statistical_helpers_follow_paired_seed_and_holm_conventions() -> None:
     assert adjusted == pytest.approx({"a": 0.03, "b": 0.06, "c": 0.9})
 
 
-@pytest.mark.parametrize(
-    "ratio, advantage, loss", [(2, 1, -1.2), (2, -1, 2), (0.5, 1, -0.5), (0.5, -1, 0.8)]
-)
-def test_ratio_clipping_uses_pessimistic_surrogate(
-    ratio: float, advantage: float, loss: float
-) -> None:
+@pytest.mark.parametrize("advantage", [-2.0, 0.0, 2.0])
+def test_objective_uses_full_forward_kl(advantage: float) -> None:
     result = token_objective(
-        [math.log(ratio)],
-        [0.0],
-        [math.log(ratio)],
+        [math.log(0.8)],
+        [[math.log(0.8), math.log(0.2), -math.inf]],
+        [[math.log(0.5), math.log(0.5), -math.inf]],
         [advantage],
         [True],
-        kl_weight=0.0,
-        ratio_clip=0.2,
+        kl_weight=0.01,
     )
-    assert result.policy == pytest.approx(loss)
+    assert result.policy == pytest.approx(-advantage * math.log(0.8))
+    assert result.kl == pytest.approx(0.8 * math.log(1.6) + 0.2 * math.log(0.4))
+    assert result.total == pytest.approx(result.policy + 0.01 * result.kl)
 
 
-@pytest.mark.parametrize("updates", [{"ratio_clip": float("nan")}, {"kl_weight": -1.0}])
+@pytest.mark.parametrize("updates", [{"kl_weight": float("nan")}, {"kl_weight": -1.0}])
 def test_token_objective_rejects_invalid_weights(updates: dict) -> None:
     with pytest.raises(ValueError, match="finite and nonnegative"):
-        token_objective([0.0], [0.0], [0.0], [1.0], [True], **updates)
+        token_objective([0.0], [[0.0]], [[0.0]], [1.0], [True], **updates)
 
 
 def test_full_demo_retains_reproducible_results_and_publishes_synchronized_log(

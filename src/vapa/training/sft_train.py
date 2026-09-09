@@ -16,6 +16,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, fields, replace
 from pathlib import Path
 
+from vapa import __version__
 from vapa.actions import Action, ActionParseError, parse_action
 from vapa.artifacts import (
     ArtifactContentKind,
@@ -141,7 +142,7 @@ class SFTTrainConfig:
     generation_top_p: float = 1.0
     generation_top_k: int = 0
     generation_max_tokens: int = 512
-    code_version: str = "vapa-ehr-0.2.0"
+    code_version: str = f"vapa-ehr-{__version__}"
 
     def validate(self) -> None:
         if not isinstance(self.data_path, Path) or not isinstance(self.output_dir, Path):

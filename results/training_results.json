@@ -42,8 +42,8 @@
   "provenance": {
     "fixture": "examples/tiny_sft.jsonl",
     "fixture_sha256": "f159f248655533e6d5375f9063208de83ad4cb756186131b358c7ddf210af25b",
-    "implementation_sha256": "8cf150347086269c99403e40b28f1827f12917f7aad59e2ff2c7148d015c02be",
-    "runner_sha256": "1093742ebf8747c4cc19e0d976ba590cb081d35e14bce0beb1e6f474168883d3"
+    "implementation_sha256": "67628c8885afd338d9776eb82ef4339c97262d8ea674c4becb25d9b7c5bd0e5b",
+    "runner_sha256": "f649edefbdda10e0d81dfaa7f7b7452bc0a2a15b72a101f1206d34beee693ba6"
   },
   "sft": {
     "optimizer_steps": 16,
@@ -63,7 +63,7 @@
     "backbone_unchanged": true,
     "nonzero_finite_gradient": true
   },
-  "trace_sha256": "a67216bd9ca078dc7f93b441acd5c2f86191098aecd247483311f4c418ae83ac",
+  "trace_sha256": "5e2e2f73f19a509d8d9215c1f81ff5b3198c710332ba08e7a772d0dce7928dde",
   "limitations": [
     "Tiny random model and three synthetic demonstrations, not Qwen3.5-9B or gpt-oss-20b.",
     "SFT losses are measured on training examples; no generalization or clinical-performance claim.",

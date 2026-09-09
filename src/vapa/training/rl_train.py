@@ -515,7 +515,7 @@ class RLRunSettings:
     replay_quota_path: Path | None = None
     scaffold: str = ""
     ratio_clip: float | None = None
-    kl_mode: str = "k3"
+    kl_mode: str = "forward"
     deterministic: bool = True
     dry_run: bool = False
     demo_catalogs: bool = False
@@ -537,12 +537,10 @@ class RLRunSettings:
             or self.max_optimizer_steps < 1
         ):
             raise ValueError("max_optimizer_steps must be positive or None")
-        if self.ratio_clip is not None and (
-            not math.isfinite(self.ratio_clip) or self.ratio_clip < 0
-        ):
-            raise ValueError("ratio_clip must be finite and nonnegative")
-        if self.kl_mode not in {"k3", "log_ratio"}:
-            raise ValueError("kl_mode must be k3 or log_ratio")
+        if self.ratio_clip is not None:
+            raise ValueError("Eq. 9 uses a log-policy objective without ratio clipping")
+        if self.kl_mode != "forward":
+            raise ValueError("Eq. 9 requires full-vocabulary forward KL")
         for name in ("deterministic", "dry_run", "demo_catalogs", "allow_non_paper_exact"):
             if not isinstance(getattr(self, name), bool):
                 raise TypeError(f"{name} must be boolean")
@@ -2444,8 +2442,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--checkpoint-every", type=int, default=10)
     parser.add_argument("--max-optimizer-steps", type=int)
     parser.add_argument("--scaffold", default="")
-    parser.add_argument("--ratio-clip", type=float)
-    parser.add_argument("--kl-mode", choices=("k3", "log_ratio"), default="k3")
+    parser.add_argument(
+        "--ratio-clip", type=float, help="legacy option; rejected by the revised Eq. 9 objective"
+    )
+    parser.add_argument("--kl-mode", choices=("forward",), default="forward")
     parser.add_argument("--dry-run", action="store_true", help="validate without ML imports")
     parser.add_argument(
         "--demo-catalogs",

@@ -102,7 +102,7 @@ class TokenLedger:
 
     @property
     def loss_updates(self) -> list[list[GroupCharge]]:
-        """Optimizer view, excluding a final group that crosses the run quota."""
+        """Optimizer view, including the intact group that crosses the run quota."""
 
         return [[charge for charge in update if charge.include_in_loss] for update in self.updates]
 
@@ -111,11 +111,9 @@ class TokenLedger:
 
         if self.complete and not self.permit_post_target:
             raise RuntimeError("token target is already complete")
-        if self.complete or (
-            self.spent_tokens < self.target_tokens < self.spent_tokens + charge.sampled_tokens
-        ):
-            # A comparison group is atomic. Conservatively charge its generation while
-            # excluding the whole boundary-crossing group from the actor loss.
+        if self.complete:
+            # Only extra matched-control bookkeeping after target completion is
+            # comparison-only. The group that first reaches/crosses it is trainable.
             charge = replace(charge, include_in_loss=False)
         self._current.append(charge)
         self._current_tokens += charge.sampled_tokens

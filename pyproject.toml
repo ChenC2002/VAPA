@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vapa-ehr"
-version = "0.2.0"
+version = "0.3.0"
 description = "Verifier-Anchored Process Advantage for bounded-memory EHR agents"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -76,3 +76,5 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+# Preserve the public str/Enum representation; StrEnum changes __str__ semantics.
+ignore = ["UP042"]

@@ -185,7 +185,7 @@ def test_shared_lora_restores_actor_after_frozen_reference_activation(monkeypatc
             reference=reference,
             kl_weight=0.01,
             ratio_clip=None,
-            kl_mode="k3",
+            kl_mode="forward",
         )
 
 

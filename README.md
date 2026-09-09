@@ -84,6 +84,8 @@ Regenerate demo snapshots with `vapa demo --compact --publish`.
 
 Full-model runs require authorized EHR data, task-specific adapters and scoring,
 verifier/calculator catalogs, and pinned model/tokenizer revisions with LoRA targets.
+The paper's fourteen-predicate companion specification is still required; the bundled
+catalog contains seven demo predicates. Training uses the revised Eq. 9 forward-KL loss.
 
 | Input | Example |
 | --- | --- |

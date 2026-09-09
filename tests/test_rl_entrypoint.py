@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import random
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
@@ -226,7 +227,7 @@ class TinyModel:
         kl_mode: str,
     ) -> LossReport:
         assert ratio_clip is None
-        assert kl_mode == "k3"
+        assert kl_mode == "forward"
         tokens = sum(item.token_count for item in examples)
         advantage = sum(item.advantage * item.token_count for item in examples) / tokens
         policy = -self.weight * advantage
@@ -413,7 +414,7 @@ def _factory_sink(
     return factory
 
 
-def test_full_rl_lifecycle_resumes_and_excludes_final_comparison_group(tmp_path: Path):
+def test_full_rl_lifecycle_resumes_and_trains_final_budget_crossing_group(tmp_path: Path):
     config, episodes = _write_inputs(tmp_path)
     output = tmp_path / "run"
     verifier = Path("examples/demo_verifier_catalog.json").resolve()
@@ -464,11 +465,11 @@ def test_full_rl_lifecycle_resumes_and_excludes_final_comparison_group(tmp_path:
         ),
     )
     assert completed.status == "complete"
-    assert completed.global_step == 2
+    assert completed.global_step == 3
     assert completed.sampled_tokens == 18
-    assert completed.trainable_tokens == 12
+    assert completed.trainable_tokens == 18
     assert completed.metric_records == 3
-    assert stacks[-1].optimizer.steps == 2
+    assert stacks[-1].optimizer.steps == 3
     assert completed.checkpoint_path is not None
     manifest = read_manifest(completed.checkpoint_path)
     assert manifest.runtime.sampled_tokens == 18
@@ -490,9 +491,9 @@ def test_full_rl_lifecycle_resumes_and_excludes_final_comparison_group(tmp_path:
 
     metrics = [json.loads(line) for line in (output / "metrics.jsonl").read_text().splitlines()]
     assert [row["batch_sampled_tokens"] for row in metrics] == [6, 6, 6]
-    assert metrics[-1]["comparison_only_instances"] == 1
-    assert metrics[-1]["action_tokens"] == 0
-    assert metrics[-1]["loss"] is None
+    assert metrics[-1]["comparison_only_instances"] == 0
+    assert metrics[-1]["action_tokens"] == 6
+    assert math.isfinite(metrics[-1]["loss"])
     quotas = (output / "replay_quota.jsonl").read_text().splitlines()
     assert len(quotas) == 3
     run_manifest = json.loads((output / "run_manifest.json").read_text())

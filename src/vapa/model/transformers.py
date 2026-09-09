@@ -919,6 +919,33 @@ class TransformersActorAdapter:
         except StopIteration:
             return torch.device("cpu")
 
+    def _action_logits(self, example: TokenizedAction) -> Any:
+        torch = _require_torch()
+        self._prepare_forward()
+        sequence = example.prompt_ids + example.action_ids
+        input_ids = torch.tensor([sequence], dtype=torch.long, device=self._model_device())
+        output = self.model(input_ids=input_ids, attention_mask=torch.ones_like(input_ids))
+        return output.logits[0, len(example.prompt_ids) - 1 : len(sequence) - 1]
+
+    @staticmethod
+    def _mask_action_logits(example: TokenizedAction, logits: Any, *, offset: int = 0) -> Any:
+        """Apply the same legal support at each sampled history for both policies."""
+
+        if example.prefix_mask is None:
+            return logits.float()
+        torch = _require_torch()
+        rows = []
+        for index, row in enumerate(logits, start=offset):
+            prefix = example.action_ids[:index]
+            allowed = example.prefix_mask.allowed_next(prefix)
+            forbidden = example.prefix_mask.forbidden_next(prefix)
+            if allowed is not None and example.action_ids[index] not in allowed:
+                raise ValueError("action target diverges from its feasible canonical prefix")
+            if example.action_ids[index] in forbidden:
+                raise ValueError("action target uses an illegal reasoning-channel control token")
+            rows.append(_masked_logit_row(row, allowed, example.prefix_mask, forbidden))
+        return torch.stack(rows)
+
     def _action_log_probs(
         self,
         examples: Sequence[TokenizedAction],
@@ -932,40 +959,10 @@ class TransformersActorAdapter:
         result: list[Any] = []
         with context:
             for example in examples:
-                self._prepare_forward()
-                sequence = example.prompt_ids + example.action_ids
-                input_ids = torch.tensor([sequence], dtype=torch.long, device=self._model_device())
-                attention_mask = torch.ones_like(input_ids)
-                output = self.model(input_ids=input_ids, attention_mask=attention_mask)
-                logits = output.logits[0]
-                start = len(example.prompt_ids) - 1
-                stop = len(sequence) - 1
-                action_logits = logits[start:stop]
-                targets = input_ids[0, len(example.prompt_ids) :]
-                if example.prefix_mask is None:
-                    normalized_logits = action_logits.float()
-                else:
-                    rows = []
-                    for index, row in enumerate(action_logits):
-                        allowed = example.prefix_mask.allowed_next(example.action_ids[:index])
-                        forbidden = example.prefix_mask.forbidden_next(example.action_ids[:index])
-                        if allowed is not None and example.action_ids[index] not in allowed:
-                            raise ValueError(
-                                "action target diverges from its feasible canonical prefix"
-                            )
-                        if example.action_ids[index] in forbidden:
-                            raise ValueError(
-                                "action target uses an illegal reasoning-channel control token"
-                            )
-                        rows.append(
-                            _masked_logit_row(
-                                row,
-                                allowed,
-                                example.prefix_mask,
-                                forbidden,
-                            )
-                        )
-                    normalized_logits = torch.stack(rows)
+                normalized_logits = self._mask_action_logits(example, self._action_logits(example))
+                targets = torch.tensor(
+                    example.action_ids, dtype=torch.long, device=self._model_device()
+                )
                 log_probs = torch.log_softmax(normalized_logits, dim=-1)
                 result.append(log_probs.gather(-1, targets.unsqueeze(-1)).squeeze(-1))
         return result
@@ -1046,48 +1043,81 @@ class TransformersActorAdapter:
             )
         if not math.isfinite(kl_weight) or kl_weight < 0:
             raise ValueError("kl_weight must be finite and nonnegative")
-        if ratio_clip is not None and (not math.isfinite(ratio_clip) or ratio_clip < 0):
-            raise ValueError("ratio_clip must be finite and nonnegative")
-        tokenized = [example.tokens for example in examples]
-        new_rows = self._action_log_probs(tokenized, requires_grad=True)
-        try:
-            reference_rows = reference._action_log_probs(tokenized, requires_grad=False)
-        finally:
-            # PEFT adapter activation is global to the shared model. Restore the actor
-            # before the deferred backward callback so its leaf parameters accumulate
-            # gradients and the generation backend observes the trained policy.
-            if shared_backbone:
-                self._prepare_forward()
+        if ratio_clip is not None:
+            raise ValueError("Eq. 9 uses a log-policy objective without ratio clipping")
+        if kl_mode != "forward":
+            raise ValueError("Eq. 9 requires full-vocabulary forward KL")
+        if not examples:
+            raise ValueError("an action-token loss requires at least one example")
+        from torch.utils.checkpoint import checkpoint
+
         policy_terms: list[Any] = []
         kl_terms: list[Any] = []
-        device = self._model_device()
-        for example, new, reference_log_probs in zip(
-            examples, new_rows, reference_rows, strict=True
-        ):
-            reference_log_probs = reference_log_probs.to(device=new.device, dtype=new.dtype)
-            old = torch.tensor(example.behavior_log_probs, dtype=new.dtype, device=device)
-            advantage = torch.tensor(example.advantage, dtype=new.dtype, device=device)
-            ratio = torch.exp(new - old)
-            surrogate = ratio * advantage
-            if ratio_clip is not None:
-                clipped = torch.clamp(ratio, 1.0 - ratio_clip, 1.0 + ratio_clip)
-                surrogate = torch.minimum(surrogate, clipped * advantage)
-            policy_terms.append(-surrogate)
-            if kl_mode == "k3":
-                log_ratio = reference_log_probs - new
-                kl_terms.append(torch.exp(log_ratio) - log_ratio - 1.0)
-            elif kl_mode == "log_ratio":
-                kl_terms.append(new - reference_log_probs)
-            else:
-                raise ValueError(f"unknown KL mode: {kl_mode}")
-        policy = torch.cat(policy_terms).mean()
-        kl = torch.cat(kl_terms).mean()
+        token_count = sum(example.token_count for example in examples)
+        for example in examples:
+            try:
+                with torch.no_grad():
+                    reference_logits = reference._action_logits(example.tokens)
+            finally:
+                # Shared PEFT activation is global: restore the trainable actor before
+                # its forward pass and the deferred backward callback.
+                if shared_backbone:
+                    self._prepare_forward()
+            actor_logits = self._action_logits(example.tokens)
+            if actor_logits.shape != reference_logits.shape:
+                raise ValueError("actor and reference must use the same vocabulary")
+            for offset in range(0, example.token_count, 64):
+                stop = min(offset + 64, example.token_count)
+
+                def chunk_loss(
+                    actor_chunk: Any,
+                    reference_chunk: Any,
+                    *,
+                    item: VAPAAction = example,
+                    start: int = offset,
+                    end: int = stop,
+                ) -> tuple[Any, Any]:
+                    # FP32 renormalization on identical grammar support. Bind the
+                    # history/offset here: checkpoint recomputes this after the loop.
+                    actor_log = torch.log_softmax(
+                        self._mask_action_logits(item.tokens, actor_chunk, offset=start), dim=-1
+                    )
+                    reference_log = torch.log_softmax(
+                        self._mask_action_logits(item.tokens, reference_chunk, offset=start), dim=-1
+                    )
+                    targets = torch.tensor(
+                        item.tokens.action_ids[start:end], dtype=torch.long, device=actor_log.device
+                    )
+                    sampled_log = actor_log.gather(-1, targets.unsqueeze(-1)).squeeze(-1)
+                    # Excluded vocabulary entries have zero mass. Zero their log terms
+                    # before subtraction to avoid NaN from (-inf)-(-inf) in autograd.
+                    excluded = torch.isneginf(actor_log)
+                    difference = actor_log.masked_fill(excluded, 0.0) - reference_log.masked_fill(
+                        excluded, 0.0
+                    )
+                    return (
+                        -item.advantage * sampled_log.sum(),
+                        (actor_log.exp() * difference).sum(),
+                    )
+
+                # Recompute only the vocabulary normalization during backward instead
+                # of retaining all FP32 token-by-vocabulary distributions at once.
+                policy_chunk, kl_chunk = checkpoint(
+                    chunk_loss,
+                    actor_logits[offset:stop],
+                    reference_logits[offset:stop].to(device=actor_logits.device),
+                    use_reentrant=False,
+                )
+                policy_terms.append(policy_chunk)
+                kl_terms.append(kl_chunk)
+        policy = torch.stack(policy_terms).sum() / token_count
+        kl = torch.stack(kl_terms).sum() / token_count
         total = policy + kl_weight * kl
         return LossReport(
             total=self._metric(total),
             policy=self._metric(policy),
             kl=self._metric(kl),
-            token_count=sum(example.token_count for example in examples),
+            token_count=token_count,
             _backward=lambda scale: (total * scale).backward(),
         )
 

@@ -154,7 +154,7 @@ class FakeModel:
         kl_mode: str,
     ) -> LossReport:
         assert ratio_clip is None
-        assert kl_mode == "k3"
+        assert kl_mode == "forward"
         assert reference.mode == "eval"
         token_count = sum(example.token_count for example in examples)
         mean_advantage = (
