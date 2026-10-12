@@ -50,20 +50,11 @@ These checks need no GPU, model weights, credentials, or network access.
 | Tiny-model training checks | [`training_results.json`](results/training_results.json) | [`training_results.jsonl`](logs/training_results.jsonl) |
 | Demo checks | [`demo_results.json`](results/demo_results.json) | [`demo_results.jsonl`](logs/demo_results.jsonl) |
 
-Paper numbers are manuscript-reported, not independently reproduced here; tiny-model
-training and synthetic demo results are execution checks, not benchmark performance.
-
 Runs retain prepared splits, demonstrations, checkpoints, predictions, and analysis
 reports in their selected output directories; keep patient-level data on approved storage.
 
 <details>
 <summary>Verify or regenerate result snapshots</summary>
-
-Verify paper references:
-
-```bash
-python scripts/export_paper_results.py
-```
 
 Reproduce the CPU training checks in a separate Python 3.13 environment:
 
