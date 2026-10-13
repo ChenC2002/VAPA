@@ -1,27 +1,14 @@
 # Where Credit Lands: Verifiable Step Credit for Bounded-Memory EHR Agents
 
-**VAPA** (**V**erifier-**A**nchored **P**rocess **A**dvantage) trains bounded-memory EHR agents using verifier rewards and forked replay to assign credit to individual actions. At inference, the agent retrieves evidence, manages memory, and answers under an action budget without replay or verifiers.
+**VAPA** (Verifier-Anchored Process Advantage) is a training method for bounded-memory
+EHR agents. It uses record-grounded verifiers and replay branches from the same agent
+state to assign credit to individual actions. At test time, the agent retrieves
+evidence, manages its memory, and answers within an action budget, without replay
+or verifier calls.
 
-## Method Map
+## Getting started
 
-| Stage | Implementation | Responsibility |
-| --- | --- | --- |
-| Data preparation | [`adapters.py`](src/vapa/data/adapters.py), [`pipeline.py`](src/vapa/data/pipeline.py) | Construct cutoff-valid tasks and patient-disjoint splits |
-| Bounded-memory agent | [`actions.py`](src/vapa/actions.py), [`environment/`](src/vapa/environment/) | Enforce action, memory, retrieval, and budget constraints |
-| Process supervision | [`verifiers.py`](src/vapa/verifiers.py), [`rollouts.py`](src/vapa/rollouts.py) | Score actions and replay exact pre-action states |
-| Step credit | [`groups.py`](src/vapa/training/groups.py), [`advantages.py`](src/vapa/training/advantages.py), [`trainer.py`](src/vapa/training/trainer.py) | Combine local and episode advantages |
-| SFT and RL | [`sft_train.py`](src/vapa/training/sft_train.py), [`rl_train.py`](src/vapa/training/rl_train.py) | Train action tokens and save resumable checkpoints |
-| Evaluation | [`runner.py`](src/vapa/evaluation/runner.py), [`analysis.py`](src/vapa/evaluation/analysis.py), [`reporting.py`](src/vapa/evaluation/reporting.py) | Evaluate checkpoints and analyze experiment results |
-
-Examples are in [`examples/`](examples/), settings in [`configs/`](configs/), and tests
-in [`tests/`](tests/). Versioned prompts and schemas live in
-[`public_core_v1/`](src/vapa/releases/public_core_v1/).
-
-## Quick Start
-
-### Install
-
-From the repository root, using Python 3.11 or newer:
+Clone the repository and install the core package with Python 3.11 or newer:
 
 ```bash
 python3.11 -m venv .venv
@@ -29,10 +16,7 @@ source .venv/bin/activate
 python -m pip install -e .
 ```
 
-The core has no runtime dependencies; optional training and development extras are
-defined in [`pyproject.toml`](pyproject.toml).
-
-### Validate
+Then check the setup and run the example:
 
 ```bash
 vapa validate-public-core
@@ -40,9 +24,10 @@ vapa validate-config configs/vapa_qwen.toml
 vapa demo --compact
 ```
 
-These checks need no GPU, model weights, credentials, or network access.
+The core package has no runtime dependencies. The example runs on CPU and does not
+download model weights or need access to patient data.
 
-## Results and Outputs
+## Results
 
 | Results | Summary | Log |
 | --- | --- | --- |
@@ -50,13 +35,13 @@ These checks need no GPU, model weights, credentials, or network access.
 | Tiny-model training checks | [`training_results.json`](results/training_results.json) | [`training_results.jsonl`](logs/training_results.jsonl) |
 | Synthetic demo checks | [`demo_results.json`](results/demo_results.json) | [`demo_results.jsonl`](logs/demo_results.jsonl) |
 
-Runs retain prepared splits, demonstrations, checkpoints, predictions, and analysis
-reports in their selected output directories; keep patient-level data on approved storage.
+Each run saves its outputs in the directory you choose. Keep patient-level data on
+approved storage.
 
 <details>
-<summary>Verify or regenerate result snapshots</summary>
+<summary>Rerun the CPU checks</summary>
 
-Reproduce the CPU training checks in a separate Python 3.13 environment:
+For the tiny-model training run, use a separate Python 3.13 environment:
 
 ```bash
 python3.13 -m venv .venv-model
@@ -65,20 +50,14 @@ python -m pip install -e '.[train]' -c configs/model_test_constraints.txt
 HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python scripts/train_tiny.py --publish
 ```
 
-Regenerate demo snapshots with `vapa demo --compact --publish`.
-
-`--publish` updates the corresponding files above; underlying runs remain in `runs/`.
+To update the demo results, run `vapa demo --compact --publish`.
+The `--publish` flag replaces the summary and log linked above; full run files stay in `runs/`.
 
 </details>
 
-## Required Inputs
+## Data and configuration
 
-Full-model runs require authorized EHR data, task-specific adapters and scoring,
-verifier/calculator catalogs, and pinned model/tokenizer revisions with LoRA targets.
-The [Table 7 layout](src/vapa/releases/paper_verifier_layout.json) records all fourteen
-names, weights, action assignments, and normalizers. Detailed decision/abstention rules
-still need the companion specification; the runnable demo has seven predicates.
-Training uses the revised Eq. 9 forward-KL loss.
+The files in [`examples/`](examples/) show the expected input formats:
 
 | Input | Example |
 | --- | --- |
@@ -89,23 +68,33 @@ Training uses the revised Eq. 9 forward-KL loss.
 | Verifier and calculator schemas | [`demo_verifier_catalog.json`](examples/demo_verifier_catalog.json), [`tiny_calculators.json`](examples/tiny_calculators.json) |
 | Analysis and reporting manifests | [`tiny_analysis_manifest.json`](examples/tiny_analysis_manifest.json), [`tiny_experiment_report_manifest.json`](examples/tiny_experiment_report_manifest.json) |
 
-Use [`vapa_qwen.toml`](configs/vapa_qwen.toml) for the main experiment, or the
-[GPT-OSS](configs/vapa_gpt_oss.toml) and [matched no-fork](configs/no_fork_matched_qwen.toml) variants.
+For your own experiments, supply authorized EHR data, task adapters and scorers,
+verifier and calculator implementations, and fixed model/tokenizer revisions.
+The [Table 7 layout](src/vapa/releases/paper_verifier_layout.json) lists the names,
+weights, and action assignments of all fourteen predicates. Their detailed decision and
+abstention rules need the companion specification; the demo uses seven predicates.
 
-## Workflow
+Start with [`vapa_qwen.toml`](configs/vapa_qwen.toml) for the main experiment.
+The [`configs/`](configs/) directory also includes
+[GPT-OSS](configs/vapa_gpt_oss.toml) and [matched no-fork](configs/no_fork_matched_qwen.toml)
+settings. Training follows the forward-KL objective in Eq. 9.
 
-The default commands use bundled examples; full-model templates are expandable below.
+## Running the pipeline
 
-### Step 1: Preprocess
+The commands below use the small example dataset. Expand the training and evaluation
+sections when you are ready to use your own data and checkpoints.
+
+### 1. Prepare the data
 
 ```bash
 vapa prepare-data examples/tiny_dataset_manifest.json runs/demo/prepared
 vapa validate-episodes runs/demo/prepared/train.jsonl
 ```
 
-Preparation writes patient-disjoint splits; replace the example manifest with your own mapped sources.
+This creates splits with no patients shared between them. To use another dataset,
+edit the paths and field mappings in the input manifest.
 
-### Step 2: Build Demonstrations
+### 2. Build SFT demonstrations
 
 ```bash
 vapa-generate-sft runs/demo/prepared/train.jsonl runs/demo/sft.jsonl \
@@ -113,11 +102,12 @@ vapa-generate-sft runs/demo/prepared/train.jsonl runs/demo/sft.jsonl \
 vapa-train-sft --data runs/demo/sft.jsonl --dry-run
 ```
 
-The generator supports the example latest-field tasks; other task families need their own demonstrations.
+The included generator handles latest-field queries. Add demonstrations for any
+other task families you plan to train on.
 
-### Step 3: Train
+### 3. Train
 
-Check the RL setup without loading a model:
+First, inspect the training plan and check the configuration without loading a model:
 
 ```bash
 vapa show-training-plan --config configs/vapa_qwen.toml
@@ -126,9 +116,10 @@ vapa-train configs/vapa_qwen.toml examples/tiny_episode.json runs/demo/rl \
 ```
 
 <details>
-<summary>Full-model SFT and RL</summary>
+<summary>Train a model with SFT, then RL</summary>
 
-These templates require your own inputs: replace `AUTHOR_*`, `path/to/...`, and `your_release.*`.
+Replace `AUTHOR_*`, `path/to/...`, and `your_release.*` with your revisions, paths,
+and task implementations. Set the LoRA target modules for your chosen model.
 
 ```bash
 python -m pip install -e '.[train]'
@@ -142,7 +133,7 @@ vapa-train-sft \
   --lora-target-module AUTHOR_MODULE
 ```
 
-Initialize the RL actor and frozen KL reference from the resulting SFT checkpoint:
+Use the SFT checkpoint to initialize both the RL actor and its frozen KL reference:
 
 ```bash
 vapa-train configs/vapa_qwen.toml data/processed/train.jsonl runs/vapa \
@@ -157,23 +148,23 @@ vapa-train configs/vapa_qwen.toml data/processed/train.jsonl runs/vapa \
   --outcome-scorer your_release.scoring:outcome_scorer
 ```
 
-Repeat `--lora-target-module` for each target; use SFT `--resume-from` or RL `--resume`
-to continue a checkpoint in its original run.
+Repeat `--lora-target-module` for each target module. To resume training in the same
+run directory, use `--resume-from` for SFT or `--resume` for RL.
 
 </details>
 
-### Step 4: Evaluate
+### 4. Evaluate
+
+Run the reference policy on the prepared examples:
 
 ```bash
 vapa evaluate runs/demo/prepared/train.jsonl runs/demo/evaluation
 ```
 
-This evaluates the reference policy on the prepared examples.
-
 <details>
-<summary>Trained-checkpoint evaluation</summary>
+<summary>Evaluate a trained checkpoint</summary>
 
-Use the RL run's `checkpoint_path` and your task-specific scorer:
+Point `--checkpoint` to the RL run's saved checkpoint and provide your task scorer:
 
 ```bash
 vapa evaluate data/processed/test.jsonl results/evaluation \
@@ -187,7 +178,10 @@ vapa evaluate data/processed/test.jsonl results/evaluation \
 
 </details>
 
-### Step 5: Analyze
+### 5. Analyze the results
+
+These examples show how to generate analysis and experiment reports. Replace the
+example files with your predictions and metric rows for your own runs.
 
 ```bash
 vapa-analyze examples/tiny_analysis_manifest.json \
@@ -196,10 +190,8 @@ vapa-report examples/tiny_experiment_report_manifest.json \
   examples/tiny_experiment_metrics.jsonl runs/demo/report.json --content-kind public
 ```
 
-Replace the fixture inputs with your predictions and metric rows for experiment reporting.
-
 <details>
-<summary>Seed audits, task scoring, and run evidence</summary>
+<summary>Compare seeds and inspect run records</summary>
 
 ```bash
 vapa-audit-seeds examples/tiny_seed_audit.json examples/tiny_seed_metrics.jsonl \
@@ -208,36 +200,47 @@ vapa-run-receipt path/to/run path/to/checkpoint runs/run_receipt.json \
   --evaluation path/to/checkpoint-evaluation
 ```
 
-For seed audits, provide full-precision aggregate exports, run IDs/source hashes,
-seed IDs, and prespecified comparison families. Audit each backbone separately;
+Run seed comparisons separately for each backbone, using full-precision metrics,
+seed IDs, run IDs, and source hashes. Specify the comparison families before testing.
 `--paper-results results/paper_results.json` checks available main-table means and SDs.
 Use patient-cluster analysis for bootstrap SEs.
 
 Both training commands save `resolved_config.json` and `execution.jsonl` alongside
-metrics and checkpoints. Run receipts link these records through file hashes.
-The CPU training receipt is in `training_results.json` under `sft`.
+metrics and checkpoints. A run receipt links these files by their hashes; the CPU
+training receipt is saved under `sft` in `training_results.json`.
 
 Evaluation and RL accept `--scorer-manifest` instead of `--outcome-scorer`; see
 [`tiny_scorer.json`](examples/tiny_scorer.json). Rules are keyed by `metadata.task_type`
-and explicitly declare numeric tolerance, grounding, and missing-answer behavior.
-RL scores answer correctness only; evaluation checks grounding separately, including
-an executed absence-bearing tool return for missing-value answers.
+and set the numeric tolerance, grounding checks, and treatment of missing answers.
+RL rewards answer correctness. Evaluation also checks the evidence; a missing-value
+answer needs a tool return confirming that no qualifying event was found.
 `VerifierCatalog.from_paper_functions` binds fourteen supplied predicate functions
 to Table 7 and validates their names, weights, and action assignments.
 
 </details>
 
 <details>
-<summary>Advanced analysis and checkpoint notes</summary>
+<summary>Additional options</summary>
 
 - Binary evaluation uses `--binary-readout --policy-id SYSTEM_ID`; trained systems also require `--analysis-seed SEED`.
 - Aggregate repeated episodes to one value per system/seed/task/patient/metric/coordinate/profile cell before reporting; paired comparisons need matched panels.
-- Use `decision_depths` / `decision_depth` for per-step slopes, not the legacy per-day horizon fields.
+- Use `decision_depths` / `decision_depth` for per-step slopes.
 - `confirmatory_tests` selects the Holm correction family; omit it for all computed tests or use `[]` for none.
 - Checkpoint loading verifies file and tokenizer fingerprints; older tokenizer-v1 checkpoints are incompatible.
-- Existing data/report outputs require explicit `--overwrite`; use `--help` for each command's options.
+- To replace existing data or report files, pass `--overwrite`. Each command lists its options under `--help`.
 
 </details>
+
+## Code layout
+
+| Component | Where to look |
+| --- | --- |
+| Data loading and preparation | [`src/vapa/data/`](src/vapa/data/) |
+| Actions, tools, and memory | [`actions.py`](src/vapa/actions.py), [`environment/`](src/vapa/environment/) |
+| Verifiers and replay | [`verifiers.py`](src/vapa/verifiers.py), [`rollouts.py`](src/vapa/rollouts.py) |
+| Step advantages, SFT, and RL | [`src/vapa/training/`](src/vapa/training/) |
+| Evaluation and statistical analysis | [`src/vapa/evaluation/`](src/vapa/evaluation/) |
+| Versioned prompts and schemas | [`public_core_v1/`](src/vapa/releases/public_core_v1/) |
 
 ## Development
 
@@ -250,5 +253,5 @@ python scripts/validate_release.py
 python -m build
 ```
 
-`pytest -m model` selects the optional CPU training integration test; it requires the
-model dependencies above. Release validation checks result/log agreement and fingerprints.
+To run just the CPU model integration test, install the training dependencies and
+use `pytest -m model`.
