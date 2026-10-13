@@ -1,0 +1,13 @@
+{
+  "schema_version": "vapa-task-scorer-v1",
+  "task_rules": {
+    "latest_laboratory_value": {
+      "method": "numeric",
+      "grounding": "exact_references",
+      "absolute_tolerance": 0.0,
+      "relative_tolerance": 0.0,
+      "missing_value": "NOTRECORDED",
+      "allow_missing_without_evidence": true
+    }
+  }
+}

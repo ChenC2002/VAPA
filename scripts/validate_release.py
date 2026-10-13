@@ -42,9 +42,10 @@ def main() -> int:
     from vapa.environment.calculators import CalculatorRegistry
     from vapa.provenance import package_code_fingerprint
     from vapa.releases import load_public_core_release
-    from vapa.verifiers import VerifierCatalog
+    from vapa.verifiers import VerifierCatalog, paper_predicate_layout
 
     root = ROOT
+    paper_predicate_layout()
     for path in sorted((root / "configs").glob("*.toml")):
         load_config(path)
     episodes = load_episode_objects(root / "examples" / "tiny_episode.json")

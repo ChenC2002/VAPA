@@ -62,6 +62,19 @@ def validate_results(result: dict, events: list[dict]) -> None:
             raise ValueError("inconsistent cumulative training tokens")
     if result["sft"]["action_tokens"] != total_tokens:
         raise ValueError("training summary token count disagrees with trace")
+    receipt = result["sft"].get("execution_receipt")
+    if (
+        not isinstance(receipt, dict)
+        or receipt.get("schema_version") != "vapa-run-receipt-v1"
+        or receipt.get("stage") != "sft"
+        or receipt.get("status") != "complete"
+        or receipt.get("paper_reproduction") is not False
+        or receipt.get("optimizer_updates") != len(sft)
+        or receipt.get("trainable_tokens") != total_tokens
+        or receipt.get("seed") != result["seed"]
+        or receipt.get("implementation_sha256") != result["provenance"]["implementation_sha256"]
+    ):
+        raise ValueError("SFT execution receipt and published training trace disagree")
     if sft[-1]["loss"] >= sft[0]["loss"]:
         raise ValueError("measured SFT loss did not decrease")
     gradient = events[-1]["gradient_norm"]
@@ -177,6 +190,10 @@ def run(output: Path, *, seed: int = 7, steps: int = 16) -> tuple[dict, list[dic
     )
     interrupted = train_sft(config, stop_after_updates=steps // 2)
     resumed = train_sft(replace(config, resume_from=Path(interrupted.last_checkpoint)))
+    from vapa.training.evidence import build_run_receipt
+
+    receipt = build_run_receipt(output / "sft", Path(resumed.last_checkpoint))
+    atomic_write_text(output / "sft_receipt.json", canonical_json_dumps(receipt) + "\n")
     uninterrupted = train_sft(replace(config, output_dir=output / "sft-uninterrupted"))
     loaded = load_transformers_checkpoint(resumed.last_checkpoint)
     complete = load_transformers_checkpoint(uninterrupted.last_checkpoint)
@@ -316,6 +333,7 @@ def run(output: Path, *, seed: int = 7, steps: int = 16) -> tuple[dict, list[dic
             "final_training_set_nll": before_loss,
             "learning_rate": config.learning_rate,
             "evaluation_scope": "training_fixture_only_no_held_out_accuracy",
+            "execution_receipt": receipt,
         },
         "checks": checks,
         "trace_sha256": artifact_fingerprint(trace),

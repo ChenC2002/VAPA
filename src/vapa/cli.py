@@ -135,6 +135,10 @@ def _evaluate(args: argparse.Namespace) -> int:
         else import_factory(args.checkpoint_manager_factory)
     )
     outcome_scorer = None if args.outcome_scorer is None else import_factory(args.outcome_scorer)
+    if args.scorer_manifest is not None:
+        from vapa.evaluation.scoring import TaskScorer
+
+        outcome_scorer = TaskScorer.from_json(args.scorer_manifest).evaluation_scorer()
     result = evaluate_episodes(
         episodes,
         args.output,
@@ -242,7 +246,9 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--policy-id")
     evaluate.add_argument("--binary-readout", action="store_true")
     evaluate.add_argument("--analysis-seed", type=int)
-    evaluate.add_argument("--outcome-scorer")
+    scorer = evaluate.add_mutually_exclusive_group()
+    scorer.add_argument("--outcome-scorer")
+    scorer.add_argument("--scorer-manifest", type=Path)
     evaluate.add_argument("--allow-synthetic-outcome-scorer", action="store_true")
     evaluate.add_argument("--stochastic", action="store_true")
     evaluate.add_argument("--continue-on-error", action="store_true")

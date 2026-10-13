@@ -22,7 +22,7 @@ import os
 import tempfile
 import tomllib
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, field, replace
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Protocol
 
@@ -40,6 +40,7 @@ from vapa.data.episodes import episode_to_record, load_episode_objects
 from vapa.data.io import DataValidationError, load_jsonl, sha256_file, sha256_json
 from vapa.environment.calculators import CalculatorRegistry
 from vapa.environment.state_manager import StateManager
+from vapa.evaluation.scoring import TaskScorer
 from vapa.inference import checkpoint_identity, factory_identity, import_factory
 from vapa.model.protocols import (
     ActorModelAdapter,
@@ -64,6 +65,7 @@ from vapa.training.checkpoint import (
     save_checkpoint,
 )
 from vapa.training.curriculum import CurriculumStage, stage_at
+from vapa.training.evidence import finish_execution, start_execution
 from vapa.training.groups import assign_step_groups
 from vapa.training.ledger import GroupCharge, ReplayQuotaLedger, TokenLedger
 from vapa.training.runtime import (
@@ -2072,6 +2074,13 @@ def run_vapa_training(
         if existing != manifest:
             raise TrainingLifecycleError("resume run manifest does not match the checkpoint run")
 
+    execution_id = start_execution(
+        output,
+        config=asdict(config),
+        stage="rl",
+        device=str(getattr(components.actor, "device", "backend-defined")),
+    )
+
     def manager_factory(episode: Episode) -> StateManager:
         environment = config.environment
         return StateManager(
@@ -2415,6 +2424,8 @@ def run_vapa_training(
         output / "result.json",
         canonical_json_dumps(result.to_dict()) + "\n",
     )
+    if last_checkpoint is not None:
+        finish_execution(output, execution_id, status=result.status, checkpoint=last_checkpoint)
     return result
 
 
@@ -2436,7 +2447,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--verifier-factory", help="author verifier module:callable factory")
     parser.add_argument("--verifier-manifest", type=Path)
     parser.add_argument("--calculator-manifest", type=Path)
-    parser.add_argument("--outcome-scorer", help="optional module:callable outcome scorer")
+    scorer = parser.add_mutually_exclusive_group()
+    scorer.add_argument("--outcome-scorer", help="optional module:callable outcome scorer")
+    scorer.add_argument("--scorer-manifest", type=Path, help="explicit task-level scoring rules")
     parser.add_argument("--resume", type=Path, help="strict checkpoint directory")
     parser.add_argument("--replay-quota", type=Path, help="fork-run replay_quota.jsonl")
     parser.add_argument("--checkpoint-every", type=int, default=10)
@@ -2526,6 +2539,8 @@ def main(argv: list[str] | None = None) -> int:
     outcome_scorer = (
         None if arguments.outcome_scorer is None else import_factory(arguments.outcome_scorer)
     )
+    if arguments.scorer_manifest is not None:
+        outcome_scorer = TaskScorer.from_json(arguments.scorer_manifest)
     if arguments.component_factory is not None:
         component_factory = import_factory(arguments.component_factory)
     elif arguments.dry_run and arguments.model_revision is None:

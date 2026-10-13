@@ -13,6 +13,7 @@ import pytest
 from vapa.artifacts import strict_json_loads
 from vapa.model.protocols import LossReport, TokenizedAction
 from vapa.training.checkpoint import JsonStateStore, fingerprint_payload, read_manifest
+from vapa.training.evidence import build_run_receipt
 from vapa.training.sft_train import (
     SFTDataError,
     SFTTrainConfig,
@@ -367,6 +368,11 @@ def test_train_checkpoint_metrics_and_strict_resume(tmp_path: Path):
     assert metrics[-1]["cumulative_action_tokens"] == resumed.action_tokens
     assert created[0].weight != 1.0
     assert resumed_created[0].weight != 1.0
+    receipt = build_run_receipt(output, Path(resumed.last_checkpoint))
+    assert receipt["optimizer_updates"] == 4
+    assert receipt["paper_reproduction"] is False
+    assert receipt["environment"]["python"]
+    assert str(tmp_path) not in json.dumps(receipt)
 
     _, tokenizer_factory, actor_factory, optimizer_factory = _factories()
     with pytest.raises(FileExistsError, match="resume"):

@@ -1,0 +1,12 @@
+{
+  "schema_version": "vapa-seed-audit-v1",
+  "evidence_kind": "test_fixture",
+  "seeds": [13, 17],
+  "cells": [
+    {"id": "a", "system": "fixture-a", "backbone": "unit-model", "endpoint": "test", "metric": "accuracy", "unit": "percent"},
+    {"id": "b", "system": "fixture-b", "backbone": "unit-model", "endpoint": "test", "metric": "accuracy", "unit": "percent"}
+  ],
+  "comparisons": [
+    {"id": "a-b", "left": "a", "right": "b", "family": "fixture-family"}
+  ]
+}

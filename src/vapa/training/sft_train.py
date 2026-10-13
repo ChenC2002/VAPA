@@ -46,6 +46,7 @@ from vapa.training.checkpoint import (
     resume_checkpoint,
     save_checkpoint,
 )
+from vapa.training.evidence import finish_execution, start_execution
 from vapa.training.runtime import (
     DistributedContext,
     SFTExample,
@@ -1037,6 +1038,9 @@ def train_sft(
         )
         last_checkpoint = config.resume_from.resolve()
 
+    execution_id = start_execution(
+        output, config=config.fingerprint_payload(), stage="sft", device=device
+    )
     actor.train()
     updates_this_invocation = 0
     last_saved_step = completed_steps if config.resume_from is not None else -1
@@ -1138,7 +1142,7 @@ def train_sft(
             scheduler=scheduler,
             store=selected_store,
         )
-    return SFTTrainResult(
+    result = SFTTrainResult(
         run_id=config.run_id,
         status="complete" if completed_steps == len(schedule) else "stopped",
         completed_updates=completed_steps,
@@ -1147,6 +1151,9 @@ def train_sft(
         output_dir=str(output),
         last_checkpoint=None if last_checkpoint is None else str(last_checkpoint),
     )
+    if last_checkpoint is not None:
+        finish_execution(output, execution_id, status=result.status, checkpoint=last_checkpoint)
+    return result
 
 
 def build_parser() -> argparse.ArgumentParser:

@@ -1,0 +1,39 @@
+{
+  "schema_version": "vapa-paper-verifier-layout-v1",
+  "source": {
+    "manuscript_sha256": "785d29fd7437824a497d72b76b5b89ddd4f3853ae5d8e6bdc1056e1f09dbb64d",
+    "section": "Appendix A.2",
+    "table": 7,
+    "page": 19
+  },
+  "scope": "Verified names, families, weights, and action membership only; not predicate implementations.",
+  "score_range": [-1, 1],
+  "abstention": null,
+  "denominator": "sum of all assigned weights, including abstaining predicates",
+  "normalizers": {
+    "RETRIEVE": 1,
+    "QUERYFIELD": 5,
+    "CALCULATE": 13,
+    "UPDATEMEMORY": 11,
+    "MARKSTATUS": 2,
+    "COMPRESS": 2,
+    "DISCARD": 2,
+    "ANSWER": 16
+  },
+  "predicates": [
+    {"name": "ExactExtraction", "family": "extraction", "weight": 2, "actions": ["QUERYFIELD", "CALCULATE", "UPDATEMEMORY", "ANSWER"]},
+    {"name": "UnitConsistency", "family": "extraction", "weight": 2, "actions": ["CALCULATE", "UPDATEMEMORY", "ANSWER"]},
+    {"name": "PointerResolution", "family": "grounding", "weight": 2, "actions": ["CALCULATE", "UPDATEMEMORY", "ANSWER"]},
+    {"name": "SupportGrounding", "family": "grounding", "weight": 2, "actions": ["CALCULATE", "UPDATEMEMORY", "ANSWER"]},
+    {"name": "WindowRespected", "family": "temporal_validity", "weight": 2, "actions": ["CALCULATE", "UPDATEMEMORY", "ANSWER"]},
+    {"name": "MissingnessHandling", "family": "missingness", "weight": 2, "actions": ["QUERYFIELD", "CALCULATE", "ANSWER"]},
+    {"name": "StatusCorrectness", "family": "status_and_scope", "weight": 1, "actions": ["UPDATEMEMORY", "MARKSTATUS", "ANSWER"]},
+    {"name": "ScopeCorrectness", "family": "status_and_scope", "weight": 1, "actions": ["MARKSTATUS", "ANSWER"]},
+    {"name": "ContentPreservation", "family": "compression_and_discard", "weight": 1, "actions": ["COMPRESS"]},
+    {"name": "ProvenancePreservation", "family": "compression_and_discard", "weight": 1, "actions": ["COMPRESS", "DISCARD"]},
+    {"name": "DiscardNecessity", "family": "compression_and_discard", "weight": 1, "actions": ["DISCARD"]},
+    {"name": "ChainConsistency", "family": "grounding", "weight": 1, "actions": ["ANSWER"]},
+    {"name": "RedundantCall", "family": "stopping", "weight": 1, "actions": ["RETRIEVE", "QUERYFIELD", "CALCULATE"]},
+    {"name": "StoppingSufficiency", "family": "stopping", "weight": 1, "actions": ["ANSWER"]}
+  ]
+}

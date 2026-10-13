@@ -1,4 +1,4 @@
-# Where Credit Lands: Step-Level Advantages for Bounded-Memory EHR Agents
+# Where Credit Lands: Verifiable Step Credit for Bounded-Memory EHR Agents
 
 **VAPA** (**V**erifier-**A**nchored **P**rocess **A**dvantage) trains bounded-memory EHR agents using verifier rewards and forked replay to assign credit to individual actions. At inference, the agent retrieves evidence, manages memory, and answers under an action budget without replay or verifiers.
 
@@ -46,9 +46,9 @@ These checks need no GPU, model weights, credentials, or network access.
 
 | Results | Summary | Log |
 | --- | --- | --- |
-| Paper-reported references | [`paper_results.json`](results/paper_results.json) | [`paper_results.jsonl`](logs/paper_results.jsonl) |
+| Paper-reported references (earlier manuscript) | [`paper_results.json`](results/paper_results.json) | [`paper_results.jsonl`](logs/paper_results.jsonl) |
 | Tiny-model training checks | [`training_results.json`](results/training_results.json) | [`training_results.jsonl`](logs/training_results.jsonl) |
-| Demo checks | [`demo_results.json`](results/demo_results.json) | [`demo_results.jsonl`](logs/demo_results.jsonl) |
+| Synthetic demo checks | [`demo_results.json`](results/demo_results.json) | [`demo_results.jsonl`](logs/demo_results.jsonl) |
 
 Runs retain prepared splits, demonstrations, checkpoints, predictions, and analysis
 reports in their selected output directories; keep patient-level data on approved storage.
@@ -75,8 +75,10 @@ Regenerate demo snapshots with `vapa demo --compact --publish`.
 
 Full-model runs require authorized EHR data, task-specific adapters and scoring,
 verifier/calculator catalogs, and pinned model/tokenizer revisions with LoRA targets.
-The paper's fourteen-predicate companion specification is still required; the bundled
-catalog contains seven demo predicates. Training uses the revised Eq. 9 forward-KL loss.
+The [Table 7 layout](src/vapa/releases/paper_verifier_layout.json) records all fourteen
+names, weights, action assignments, and normalizers. Detailed decision/abstention rules
+still need the companion specification; the runnable demo has seven predicates.
+Training uses the revised Eq. 9 forward-KL loss.
 
 | Input | Example |
 | --- | --- |
@@ -166,7 +168,7 @@ to continue a checkpoint in its original run.
 vapa evaluate runs/demo/prepared/train.jsonl runs/demo/evaluation
 ```
 
-This evaluates the reference policy on the prepared examples, not a trained checkpoint.
+This evaluates the reference policy on the prepared examples.
 
 <details>
 <summary>Trained-checkpoint evaluation</summary>
@@ -195,6 +197,35 @@ vapa-report examples/tiny_experiment_report_manifest.json \
 ```
 
 Replace the fixture inputs with your predictions and metric rows for experiment reporting.
+
+<details>
+<summary>Seed audits, task scoring, and run evidence</summary>
+
+```bash
+vapa-audit-seeds examples/tiny_seed_audit.json examples/tiny_seed_metrics.jsonl \
+  runs/demo/seed_audit.json
+vapa-run-receipt path/to/run path/to/checkpoint runs/run_receipt.json \
+  --evaluation path/to/checkpoint-evaluation
+```
+
+For seed audits, provide full-precision aggregate exports, run IDs/source hashes,
+seed IDs, and prespecified comparison families. Audit each backbone separately;
+`--paper-results results/paper_results.json` checks available main-table means and SDs.
+Use patient-cluster analysis for bootstrap SEs.
+
+Both training commands save `resolved_config.json` and `execution.jsonl` alongside
+metrics and checkpoints. Run receipts link these records through file hashes.
+The CPU training receipt is in `training_results.json` under `sft`.
+
+Evaluation and RL accept `--scorer-manifest` instead of `--outcome-scorer`; see
+[`tiny_scorer.json`](examples/tiny_scorer.json). Rules are keyed by `metadata.task_type`
+and explicitly declare numeric tolerance, grounding, and missing-answer behavior.
+RL scores answer correctness only; evaluation checks grounding separately, including
+an executed absence-bearing tool return for missing-value answers.
+`VerifierCatalog.from_paper_functions` binds fourteen supplied predicate functions
+to Table 7 and validates their names, weights, and action assignments.
+
+</details>
 
 <details>
 <summary>Advanced analysis and checkpoint notes</summary>

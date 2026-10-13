@@ -110,7 +110,9 @@ def test_reported_compute_totals_and_grouping_shares_reconcile() -> None:
         assert math.isclose(total, 1.0, abs_tol=0.0002)
 
 
-@pytest.mark.parametrize("change", ["none", "trace", "tokens", "scope", "check", "missing_update"])
+@pytest.mark.parametrize(
+    "change", ["none", "trace", "tokens", "scope", "check", "missing_update", "receipt"]
+)
 def test_training_trace_validation(change: str) -> None:
     result = copy.deepcopy(load_json(ROOT / "results/training_results.json"))
     events = copy.deepcopy(load_jsonl(ROOT / "logs/training_results.jsonl"))
@@ -125,6 +127,8 @@ def test_training_trace_validation(change: str) -> None:
         result["full_rl_rollout_training"] = True
     elif change == "check":
         result["checks"]["reference_unchanged"] = False
+    elif change == "receipt":
+        result["sft"]["execution_receipt"]["optimizer_updates"] += 1
     else:
         events.pop(0)
     result["trace_sha256"] = artifact_fingerprint(events)

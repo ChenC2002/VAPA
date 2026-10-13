@@ -1,10 +1,10 @@
 """Deterministic, record-grounded process verifiers.
 
-The revised PDF specifies fourteen predicates and weights 2/1 by category, but delegates
-their complete identifiers, action assignments, and abstention rules to a companion
-specification. ``VerifierCatalog.demo_default`` is a seven-predicate synthetic-test
-catalog, deliberately marked non-paper-exact. Full reconstruction requires the frozen
-companion catalog, hashed in the run manifest.
+Table 7 of the supplied submission specifies fourteen names, families, weights, and
+action assignments, captured in ``releases/paper_verifier_layout.json``. Detailed
+decision/abstention rules still require the companion specification. The executable
+seven-predicate demo remains non-paper-exact; matching the layout alone does not
+establish that predicate implementations reproduce the author's experiment.
 """
 
 from __future__ import annotations
@@ -13,8 +13,10 @@ import math
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from enum import Enum
+from importlib.resources import files
 
 from vapa.actions import Action
+from vapa.artifacts import strict_json_loads
 from vapa.rollouts import Rollout
 from vapa.schemas import (
     ActionKind,
@@ -120,6 +122,20 @@ class VerifierTrace:
 VerifierFunction = Callable[[VerifierContext, VerifierTrace, int], float | None]
 
 
+def paper_predicate_layout() -> dict:
+    """Return the visually checked Table 7 contract, with no guessed decision rules."""
+    layout = strict_json_loads(
+        files("vapa.releases").joinpath("paper_verifier_layout.json").read_bytes()
+    )
+    calculated = {
+        action: sum(row["weight"] for row in layout["predicates"] if action in row["actions"])
+        for action in layout["normalizers"]
+    }
+    if calculated != layout["normalizers"]:
+        raise ValueError("paper predicate layout does not reproduce Table 7 normalizers")
+    return layout
+
+
 @dataclass(frozen=True)
 class Predicate:
     name: str
@@ -130,10 +146,19 @@ class Predicate:
     reliability: str = "exact"
 
     def __post_init__(self) -> None:
-        if not self.name or self.weight <= 0 or not math.isfinite(self.weight):
+        if (
+            not isinstance(self.name, str)
+            or not self.name.strip()
+            or type(self.weight) not in (int, float)
+            or self.weight <= 0
+            or not math.isfinite(self.weight)
+        ):
             raise ValueError("predicate name and finite positive weight are required")
-        if not self.actions:
+        if not self.actions or any(not isinstance(action, ActionKind) for action in self.actions):
             raise ValueError("predicate must apply to at least one action family")
+        if not isinstance(self.family, VerifierFamily) or not callable(self.function):
+            raise ValueError("predicate requires a verifier family and callable implementation")
+        object.__setattr__(self, "actions", frozenset(self.actions))
 
 
 @dataclass(frozen=True)
@@ -166,6 +191,60 @@ class VerifierCatalog:
         names = [predicate.name for predicate in self.predicates]
         if len(names) != len(set(names)):
             raise ValueError("verifier predicate names must be unique")
+        if not isinstance(paper_exact, bool) or not isinstance(catalog_id, str) or not catalog_id:
+            raise ValueError("catalog_id and an explicit boolean paper_exact are required")
+        if paper_exact and (
+            len(self.predicates) != 14
+            or any(predicate.weight not in {1.0, 2.0} for predicate in self.predicates)
+        ):
+            raise ValueError("a paper-exact catalog requires fourteen predicates with 1/2 weights")
+        if paper_exact:
+            self.validate_paper_layout()
+
+    def validate_paper_layout(self) -> None:
+        """Check membership and weights, not the semantics of the bound functions."""
+        expected = {row["name"]: row for row in paper_predicate_layout()["predicates"]}
+        actual = {predicate.name: predicate for predicate in self.predicates}
+        if actual.keys() != expected.keys():
+            raise ValueError("paper predicate names do not match Table 7")
+        for name, row in expected.items():
+            predicate = actual[name]
+            if (
+                predicate.family.value != row["family"]
+                or predicate.weight != row["weight"]
+                or {action.value for action in predicate.actions} != set(row["actions"])
+                or predicate.reliability != ("exact" if row["weight"] == 2 else "heuristic")
+            ):
+                raise ValueError(f"predicate {name} does not match its Table 7 assignment")
+
+    @classmethod
+    def from_paper_functions(
+        cls, implementations: Mapping[str, VerifierFunction], *, catalog_id: str
+    ) -> VerifierCatalog:
+        """Bind fourteen supplied functions to Table 7, without claiming paper-exact semantics.
+
+        Missing functions are an error; demo predicates or always-abstaining stubs
+        are never inserted automatically. The companion author factory must verify
+        decision semantics separately before declaring a catalog paper-exact.
+        """
+        rows = paper_predicate_layout()["predicates"]
+        if set(implementations) != {row["name"] for row in rows}:
+            raise ValueError("provide exactly the fourteen Table 7 predicate implementations")
+        return cls(
+            (
+                Predicate(
+                    row["name"],
+                    VerifierFamily(row["family"]),
+                    row["weight"],
+                    frozenset(ActionKind(action) for action in row["actions"]),
+                    implementations[row["name"]],
+                    "exact" if row["weight"] == 2 else "heuristic",
+                )
+                for row in rows
+            ),
+            catalog_id=catalog_id,
+            paper_exact=False,
+        )
 
     def score_turn(self, episode: Episode, rollout: Rollout, turn_index: int) -> ProcessScore:
         context = VerifierContext(episode.task, episode.admissible_events)
@@ -174,6 +253,8 @@ class VerifierCatalog:
     def _score_turn(
         self, context: VerifierContext, trace: VerifierTrace, turn_index: int
     ) -> ProcessScore:
+        if type(turn_index) is not int or not 0 <= turn_index < len(trace.turns):
+            raise ValueError("turn_index must select an existing nonnegative trace position")
         turn = trace.turns[turn_index]
         if turn.action is None:
             return ProcessScore(0.0, 0.0, ())
@@ -186,7 +267,11 @@ class VerifierCatalog:
         for predicate in applicable:
             value = predicate.function(context, trace, turn_index)
             if value is not None:
-                if not math.isfinite(value) or not -1.0 <= value <= 1.0:
+                if (
+                    type(value) not in (int, float)
+                    or not math.isfinite(value)
+                    or not -1.0 <= value <= 1.0
+                ):
                     raise ValueError(f"predicate {predicate.name} returned an invalid score")
                 weighted += predicate.weight * value
             results.append(

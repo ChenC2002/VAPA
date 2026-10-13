@@ -192,6 +192,45 @@ def test_verifier_abstentions_remain_in_fixed_family_denominator():
     assert [result.fired for result in score.results] == [True, False]
 
 
+@pytest.mark.parametrize("value", [True, -1.01, 1.01, float("nan"), float("inf"), "1"])
+def test_predicates_reject_invalid_scores(value):
+    predicate = Predicate(
+        "invalid",
+        VerifierFamily.GROUNDING,
+        2.0,
+        frozenset({ActionKind.QUERY_FIELD}),
+        lambda context, trace, index: value,
+    )
+    catalog = VerifierCatalog((predicate,), catalog_id="test", paper_exact=False)
+    with pytest.raises(ValueError, match="invalid score"):
+        catalog.score_turn(EPISODE, _rollout("base", [_turn(0, _observation(None))]), 0)
+
+
+@pytest.mark.parametrize("value", [-1.0, -0.5, 0.0, 0.5, 1.0])
+def test_fractional_and_neutral_predicates_keep_abstentions_in_denominator(value):
+    predicate = Predicate(
+        "fractional",
+        VerifierFamily.GROUNDING,
+        2.0,
+        frozenset({ActionKind.QUERY_FIELD}),
+        lambda context, trace, index: value,
+    )
+    abstaining = replace(
+        predicate, name="abstaining", weight=1.0, function=lambda context, trace, index: None
+    )
+    catalog = VerifierCatalog((predicate, abstaining), catalog_id="test", paper_exact=False)
+    score = catalog.score_turn(EPISODE, _rollout("base", [_turn(0, _observation(None))]), 0)
+    assert score.denominator == 3.0
+    assert score.reward == pytest.approx(2 * value / 3)
+    assert score.fired_count == 1
+
+
+def test_seven_demo_predicates_cannot_be_relabelled_paper_exact():
+    demo = VerifierCatalog.demo_default()
+    with pytest.raises(ValueError, match="fourteen"):
+        VerifierCatalog(demo.predicates, catalog_id="not-the-paper", paper_exact=True)
+
+
 def test_custom_verifier_predicate_cannot_access_gold_or_post_cutoff_events():
     task = TaskSpec(
         instance_id="private-instance",

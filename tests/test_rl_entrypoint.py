@@ -26,6 +26,7 @@ from vapa.training.checkpoint import (
     read_manifest,
     save_checkpoint,
 )
+from vapa.training.evidence import build_run_receipt
 from vapa.training.rl_train import (
     DeterministicEpisodeStream,
     RLRunSettings,
@@ -511,6 +512,10 @@ def test_full_rl_lifecycle_resumes_and_trains_final_budget_crossing_group(tmp_pa
         assert field in run_manifest
     assert run_manifest["input_artifacts"]["config"]["sha256"]
     assert run_manifest["input_artifacts"]["episodes"]["sha256"]
+    receipt = build_run_receipt(output, completed.checkpoint_path)
+    assert receipt["stage"] == "rl"
+    assert receipt["optimizer_updates"] == 3
+    assert receipt["sampled_tokens"] == 18
 
     uninterrupted_stacks: list[TrainingComponents] = []
     uninterrupted = run_vapa_training(

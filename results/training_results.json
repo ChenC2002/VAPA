@@ -42,8 +42,8 @@
   "provenance": {
     "fixture": "examples/tiny_sft.jsonl",
     "fixture_sha256": "f159f248655533e6d5375f9063208de83ad4cb756186131b358c7ddf210af25b",
-    "implementation_sha256": "67628c8885afd338d9776eb82ef4339c97262d8ea674c4becb25d9b7c5bd0e5b",
-    "runner_sha256": "f649edefbdda10e0d81dfaa7f7b7452bc0a2a15b72a101f1206d34beee693ba6"
+    "implementation_sha256": "0227a383f4f75c3a4875d7476ccf4ad06b51640f8e06455e59e963314b61d574",
+    "runner_sha256": "7945c17ecad6c63026fe589f710bdfe2fb7bcce95b7ccf08f53b20857f7b3eaa"
   },
   "sft": {
     "optimizer_steps": 16,
@@ -53,7 +53,49 @@
     "last_update_loss": 3.8736460208892827,
     "final_training_set_nll": 3.871272087097168,
     "learning_rate": 0.01,
-    "evaluation_scope": "training_fixture_only_no_held_out_accuracy"
+    "evaluation_scope": "training_fixture_only_no_held_out_accuracy",
+    "execution_receipt": {
+      "schema_version": "vapa-run-receipt-v1",
+      "verification_scope": "file integrity and linkage; not independent execution attestation",
+      "paper_reproduction": false,
+      "stage": "sft",
+      "status": "complete",
+      "device": "cpu",
+      "environment": {
+        "cuda_runtime": null,
+        "machine": "arm64",
+        "packages": {
+          "accelerate": "1.14.0",
+          "numpy": "2.5.2",
+          "peft": "0.20.0",
+          "tokenizers": "0.23.2",
+          "torch": "2.14.0",
+          "transformers": "5.16.1",
+          "vapa-ehr": "0.3.0"
+        },
+        "python": "3.13.5",
+        "system": "Darwin"
+      },
+      "implementation_sha256": "0227a383f4f75c3a4875d7476ccf4ad06b51640f8e06455e59e963314b61d574",
+      "config_sha256": "22f446ae9ae2012c1d6430bbb8ab51a80af10110d4d995176d03298b53385342",
+      "run_manifest_sha256": "cad6ffdee16e409fdc50227a319cb84a3ffb076f30553c93e3498d5e667eba1b",
+      "execution_journal_sha256": "1ab9c0d0413e6b5aa4396e43d5a72016bd9f3dd4727a579711d879983acf90d9",
+      "metrics_sha256": "1b2d6fe1c40fa6c62155bdb16a2edf9ec37a7d3cdd7913c3f19a81a12956e0a2",
+      "checkpoint": {
+        "kind": "directory",
+        "sha256": "705da2f8c1bcba0fa7f8172e6fd8ca1c822210faae7afa9a17c93722ed5d8313",
+        "files": 5
+      },
+      "optimizer_updates": 16,
+      "sampled_tokens": 880,
+      "trainable_tokens": 880,
+      "seed": 7,
+      "evaluation": null,
+      "limitations": [
+        "No claim of pretrained initialization, original study data, or paper-exact catalogs.",
+        "Data permissions and anonymous-release suitability require separate review."
+      ]
+    }
   },
   "checks": {
     "resume_matches_uninterrupted": true,

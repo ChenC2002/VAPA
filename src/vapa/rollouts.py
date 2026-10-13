@@ -204,7 +204,12 @@ class RolloutRunner:
         )
         if not valid_answer:
             return -1.0
-        reward = self.outcome_scorer(episode, manager.prediction, manager.answer_evidence)
+        trace_scorer = getattr(self.outcome_scorer, "score_with_trace", None)
+        reward = (
+            trace_scorer(episode, manager.prediction, manager.answer_evidence, tuple(turns))
+            if callable(trace_scorer)
+            else self.outcome_scorer(episode, manager.prediction, manager.answer_evidence)
+        )
         if isinstance(reward, bool) or not isinstance(reward, int | float):
             raise TypeError("outcome scorer must return a number")
         reward = float(reward)
