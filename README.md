@@ -190,46 +190,18 @@ vapa-report examples/tiny_experiment_report_manifest.json \
   examples/tiny_experiment_metrics.jsonl runs/demo/report.json --content-kind public
 ```
 
-<details>
-<summary>Compare seeds and inspect run records</summary>
+## Reproducing results
+
+Use the [example configuration](examples/tiny_seed_audit.json) as a starting point
+for comparing results across seeds:
 
 ```bash
 vapa-audit-seeds examples/tiny_seed_audit.json examples/tiny_seed_metrics.jsonl \
   runs/demo/seed_audit.json
-vapa-run-receipt path/to/run path/to/checkpoint runs/run_receipt.json \
-  --evaluation path/to/checkpoint-evaluation
 ```
 
-Run seed comparisons separately for each backbone, using full-precision metrics,
-seed IDs, run IDs, and source hashes. Specify the comparison families before testing.
-`--paper-results results/paper_results.json` checks available main-table means and SDs.
-Use patient-cluster analysis for bootstrap SEs.
-
-Both training commands save `resolved_config.json` and `execution.jsonl` alongside
-metrics and checkpoints. A run receipt links these files by their hashes; the CPU
-training receipt is saved under `sft` in `training_results.json`.
-
-Evaluation and RL accept `--scorer-manifest` instead of `--outcome-scorer`; see
-[`tiny_scorer.json`](examples/tiny_scorer.json). Rules are keyed by `metadata.task_type`
-and set the numeric tolerance, grounding checks, and treatment of missing answers.
-RL rewards answer correctness. Evaluation also checks the evidence; a missing-value
-answer needs a tool return confirming that no qualifying event was found.
-`VerifierCatalog.from_paper_functions` binds fourteen supplied predicate functions
-to Table 7 and validates their names, weights, and action assignments.
-
-</details>
-
-<details>
-<summary>Additional options</summary>
-
-- Binary evaluation uses `--binary-readout --policy-id SYSTEM_ID`; trained systems also require `--analysis-seed SEED`.
-- Aggregate repeated episodes to one value per system/seed/task/patient/metric/coordinate/profile cell before reporting; paired comparisons need matched panels.
-- Use `decision_depths` / `decision_depth` for per-step slopes.
-- `confirmatory_tests` selects the Holm correction family; omit it for all computed tests or use `[]` for none.
-- Checkpoint loading verifies file and tokenizer fingerprints; older tokenizer-v1 checkpoints are incompatible.
-- To replace existing data or report files, pass `--overwrite`. Each command lists its options under `--help`.
-
-</details>
+See `vapa-audit-seeds --help` for comparison options and `vapa-run-receipt --help`
+for checking a run's configuration, logs, and checkpoint records.
 
 ## Code layout
 
