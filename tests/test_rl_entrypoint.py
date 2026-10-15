@@ -415,7 +415,8 @@ def _factory_sink(
     return factory
 
 
-def test_full_rl_lifecycle_resumes_and_trains_final_budget_crossing_group(tmp_path: Path):
+@pytest.mark.parametrize("batched", [False, True])
+def test_full_rl_lifecycle_resumes_and_trains_final_budget_crossing_group(tmp_path: Path, batched):
     config, episodes = _write_inputs(tmp_path)
     output = tmp_path / "run"
     verifier = Path("examples/demo_verifier_catalog.json").resolve()
@@ -432,6 +433,7 @@ def test_full_rl_lifecycle_resumes_and_trains_final_budget_crossing_group(tmp_pa
         calculator_manifest=calculators,
         settings=RLRunSettings(
             run_id="resume-test",
+            batched_rollouts=batched,
             checkpoint_every=1,
             max_optimizer_steps=1,
             demo_catalogs=True,
@@ -460,6 +462,7 @@ def test_full_rl_lifecycle_resumes_and_trains_final_budget_crossing_group(tmp_pa
         calculator_manifest=calculators,
         settings=RLRunSettings(
             run_id="resume-test",
+            batched_rollouts=batched,
             checkpoint_every=1,
             resume_from=stopped.checkpoint_path,
             demo_catalogs=True,
@@ -527,12 +530,72 @@ def test_full_rl_lifecycle_resumes_and_trains_final_budget_crossing_group(tmp_pa
         calculator_manifest=calculators,
         settings=RLRunSettings(
             run_id="resume-test",
+            batched_rollouts=batched,
             checkpoint_every=1,
             demo_catalogs=True,
         ),
     )
     assert uninterrupted.global_step == completed.global_step
     assert uninterrupted_stacks[-1].actor.weight == pytest.approx(stacks[-1].actor.weight)
+
+
+def test_managed_rollout_barriers_resume_and_close_on_failure(tmp_path: Path):
+    config, episodes = _write_inputs(tmp_path)
+    stacks, phases = [], []
+    base_factory = _factory_sink(stacks)
+
+    class Backend:
+        fail = False
+
+        def __init__(self, components):
+            self.components = components
+            self.events = []
+
+        def prepare_sampling(self, version):
+            assert version == self.components.optimizer.steps
+            self.events.append(("sample", version))
+            if self.fail:
+                raise RuntimeError("injected sampling failure")
+
+        def prepare_training(self):
+            self.events.append(("sleep", self.components.optimizer.steps))
+
+        def behavior_diagnostics(self, update, *, scaffold):
+            self.events.append(("audit", self.components.optimizer.steps))
+            return {"tokens": update.trainable_tokens}
+
+        def close(self):
+            self.events.append(("close", self.components.optimizer.steps))
+
+    def factory(config, distributed):
+        components = base_factory(config, distributed)
+        backend = Backend(components)
+        components.rollout_backend = backend
+        phases.append(backend)
+        return components
+
+    factory.__vapa_content_id__ = "a" * 64
+    kwargs = dict(
+        component_factory=factory,
+        verifier_manifest=Path("examples/demo_verifier_catalog.json"),
+        calculator_manifest=Path("examples/tiny_calculators.json"),
+    )
+    settings = RLRunSettings(demo_catalogs=True, batched_rollouts=True, max_optimizer_steps=1)
+    stopped = run_vapa_training(config, episodes, tmp_path / "run", settings=settings, **kwargs)
+    assert phases[-1].events == [("sample", 0), ("sleep", 0), ("audit", 0), ("close", 1)]
+    resumed = run_vapa_training(
+        config,
+        episodes,
+        tmp_path / "run",
+        settings=replace(settings, resume_from=stopped.checkpoint_path, max_optimizer_steps=2),
+        **kwargs,
+    )
+    assert resumed.global_step == 2
+    assert phases[-1].events == [("sample", 1), ("sleep", 1), ("audit", 1), ("close", 2)]
+    Backend.fail = True
+    with pytest.raises(RuntimeError, match="injected sampling"):
+        run_vapa_training(config, episodes, tmp_path / "failed", settings=settings, **kwargs)
+    assert phases[-1].events == [("sample", 0), ("close", 0)]
 
 
 def test_resume_rejects_a_different_frozen_reference_initialization(tmp_path: Path):

@@ -4,6 +4,7 @@ import json
 import math
 import random
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -264,6 +265,53 @@ def _update() -> UpdateBatch:
     rollout = Rollout("rollout-1", "train-1", turns, sampled_tokens=5)
     instance = InstanceBatch("train-1", "occurrence-1", (rollout,), (), (), None)
     return UpdateBatch((instance,), None)
+
+
+def test_training_rejects_sampling_prompt_drift():
+    update = _update()
+    turn = update.instances[0].base_rollouts[0].turns[0]
+    turn.decision = replace(turn.decision, prompt_ids=(999,))
+    with pytest.raises(ValueError, match="prompt token IDs differ"):
+        collect_vapa_action_groups(update, FakeTokenizer())
+
+
+def test_behavior_diagnostics_does_not_modify_the_training_objective():
+    from vapa.model.vllm_backend import VLLMGenerationBackend
+
+    class Values:
+        def tolist(self):
+            return [-0.1, -0.2]
+
+    class Actor:
+        adapter_name = "actor"
+
+        def eval(self):
+            pass
+
+        def _action_log_probs(self, examples, *, requires_grad):
+            assert not requires_grad
+            values = Values()
+            values.tolist = lambda: [-0.1] * len(examples[0].action_ids)
+            return [values]
+
+    backend = VLLMGenerationBackend(
+        Actor(),
+        FakeTokenizer(),
+        model="fixture",
+        revision="a" * 40,
+        context_tokens=100,
+        max_lora_rank=16,
+    )
+    update = _update()
+    for turn in update.instances[0].base_rollouts[0].turns:
+        turn.decision = replace(turn.decision, behavior_policy_id=f"policy-{turn.index % 2}")
+    before = repr(update)
+    diagnostic = backend.behavior_diagnostics(update, scaffold="")
+    assert diagnostic["tokens"] == 5
+    assert diagnostic["mean"] == pytest.approx(0.12)
+    assert diagnostic["max_abs"] == pytest.approx(0.3)
+    assert diagnostic["behavior_policy_tokens"] == {"policy-0": 4, "policy-1": 1}
+    assert repr(update) == before
 
 
 def test_dependency_light_vapa_and_action_sft_end_to_end():

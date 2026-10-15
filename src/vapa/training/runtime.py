@@ -353,6 +353,8 @@ def collect_vapa_action_groups(
                     raise TrainingDataError("behavior log probabilities do not match token_count")
                 messages = render_chat(turn.observation, scaffold)
                 prompt_ids = tokenizer.encode_messages(messages, add_generation_prompt=True)
+                if decision.prompt_ids and tuple(prompt_ids) != decision.prompt_ids:
+                    raise TrainingDataError("sampling and training prompt token IDs differ")
                 mask_factory = getattr(tokenizer, "action_prefix_mask", None)
                 prefix_mask = (
                     mask_factory(messages, turn.observation.legal_actions)

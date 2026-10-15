@@ -29,6 +29,7 @@ train = [
   "torchvision>=0.20",
   "transformers>=5.13",
 ]
+vllm = ["vllm==0.31.0"]
 # Preparation and statistical analysis use the standard library.
 data = []
 eval = []
@@ -70,7 +71,10 @@ only-include = [
 addopts = "-q"
 testpaths = ["tests"]
 pythonpath = ["src"]
-markers = ["model: optional real CPU model training integration tests"]
+markers = [
+  "model: optional real CPU model training integration tests",
+  "vllm: opt-in Linux/CUDA vLLM integration tests",
+]
 
 [tool.ruff]
 line-length = 100

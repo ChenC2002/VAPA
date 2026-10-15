@@ -9,7 +9,7 @@ from dataclasses import dataclass, field, replace
 
 from vapa.actions import Action
 from vapa.environment.state_manager import StateManager, StepResult
-from vapa.policies.base import Policy, PolicyDecision
+from vapa.policies.base import Policy, PolicyDecision, PolicyRequest, sample_many
 from vapa.schemas import ActionKind, Episode, Observation, ReturnCode, ToolReturn
 
 
@@ -65,6 +65,35 @@ OutcomeScorer = Callable[[Episode, object, tuple[str, ...]], float]
 ManagerFactory = Callable[[Episode], StateManager]
 
 
+@dataclass(frozen=True)
+class RolloutSpec:
+    episode: Episode
+    rollout_id: str
+    seed: int
+    greedy: bool = False
+    instance_id: str | None = None
+    allowed_actions: frozenset[ActionKind] | None = None
+
+
+@dataclass(frozen=True)
+class ForkSpec:
+    episode: Episode
+    base: Rollout
+    anchor_turn: int
+    siblings: int
+    seed: int
+    allowed_actions: frozenset[ActionKind] | None = None
+
+
+@dataclass
+class _LiveRollout:
+    episode: Episode
+    manager: StateManager
+    rollout: Rollout
+    rng: random.Random
+    greedy: bool = False
+
+
 def exact_outcome_scorer(episode: Episode, prediction: object, evidence: tuple[str, ...]) -> float:
     del evidence
     if prediction is None:
@@ -80,9 +109,143 @@ class RolloutRunner:
         manager_factory: ManagerFactory,
         *,
         outcome_scorer: OutcomeScorer = exact_outcome_scorer,
+        batched: bool = False,
     ) -> None:
         self.manager_factory = manager_factory
         self.outcome_scorer = outcome_scorer
+        self.batched = batched
+
+    def run_many(self, specs: Iterable[RolloutSpec], policy: Policy) -> list[Rollout]:
+        """Advance independent trajectories in lockstep, preserving input order.
+
+        Batching is opt-in: the default retains even the call order of stateful
+        legacy policies. Each batched request owns its original random stream.
+        """
+        specs = list(specs)
+        if not self.batched:
+            return [
+                self.run(
+                    s.episode,
+                    policy,
+                    rollout_id=s.rollout_id,
+                    seed=s.seed,
+                    greedy=s.greedy,
+                    instance_id=s.instance_id,
+                    allowed_actions=s.allowed_actions,
+                )
+                for s in specs
+            ]
+        live = []
+        for spec in specs:
+            manager = self.manager_factory(spec.episode)
+            manager.set_action_mask(spec.allowed_actions)
+            live.append(
+                _LiveRollout(
+                    spec.episode,
+                    manager,
+                    Rollout(spec.rollout_id, spec.instance_id or spec.episode.task.instance_id, []),
+                    random.Random(spec.seed),
+                    spec.greedy,
+                )
+            )
+        return self._finish_many(live, policy)
+
+    def fork_many(self, specs: Iterable[ForkSpec], policy: Policy) -> list[Rollout]:
+        """Batch anchor candidate groups, then their independent continuations."""
+        specs = list(specs)
+        if not self.batched:
+            return [
+                branch
+                for s in specs
+                for branch in self.fork(
+                    s.episode,
+                    s.base,
+                    policy,
+                    anchor_turn=s.anchor_turn,
+                    siblings=s.siblings,
+                    seed=s.seed,
+                    allowed_actions=s.allowed_actions,
+                )
+            ]
+        requests = []
+        for spec in specs:
+            if type(spec.anchor_turn) is not int or not 0 <= spec.anchor_turn < len(
+                spec.base.turns
+            ):
+                raise IndexError("fork anchor is outside the base rollout")
+            if type(spec.siblings) is not int or spec.siblings < 1:
+                raise ValueError("siblings must be a positive integer")
+            manager = self.manager_factory(spec.episode)
+            manager.set_action_mask(spec.allowed_actions)
+            self._replay_prefix(manager, spec.base.turns[: spec.anchor_turn])
+            observation = manager.observation()
+            if (
+                observation.exact_bytes()
+                != spec.base.turns[spec.anchor_turn].observation.exact_bytes()
+            ):
+                raise RuntimeError("deterministic replay did not recover the logged observation")
+            requests.append(PolicyRequest(observation, random.Random(spec.seed), spec.siblings))
+        outputs = self._sample_many(policy, requests)
+        live = []
+        for spec, request, decisions in zip(specs, requests, outputs, strict=True):
+            for index, decision in enumerate(decisions):
+                manager = self.manager_factory(spec.episode)
+                manager.set_action_mask(spec.allowed_actions)
+                self._replay_prefix(manager, spec.base.turns[: spec.anchor_turn])
+                rollout = Rollout(
+                    f"{spec.base.rollout_id}:fork{spec.anchor_turn}:{index}",
+                    spec.base.instance_id,
+                    [self._copy_prefix(t) for t in spec.base.turns[: spec.anchor_turn]],
+                    is_base=False,
+                    parent_rollout_id=spec.base.rollout_id,
+                    fork_turn=spec.anchor_turn,
+                )
+                state = _LiveRollout(
+                    spec.episode,
+                    manager,
+                    rollout,
+                    random.Random(spec.seed * 1_000_003 + index),
+                )
+                self._advance(state, request.observation, decision, loss_mask=True)
+                live.append(state)
+        return self._finish_many(live, policy)
+
+    def _finish_many(self, live: list[_LiveRollout], policy: Policy) -> list[Rollout]:
+        while active := [state for state in live if not state.manager.terminated]:
+            requests = [
+                PolicyRequest(s.manager.observation(), s.rng, greedy=s.greedy) for s in active
+            ]
+            outputs = self._sample_many(policy, requests)
+            for state, request, decisions in zip(active, requests, outputs, strict=True):
+                self._advance(
+                    state, request.observation, decisions[0], loss_mask=state.rollout.is_base
+                )
+        for state in live:
+            rollout, manager = state.rollout, state.manager
+            rollout.outcome_reward = self._score_outcome(state.episode, manager, rollout.turns)
+            rollout.prediction = manager.prediction
+            rollout.answer_evidence = manager.answer_evidence
+            rollout.did_terminate = manager.terminated
+        return [s.rollout for s in live]
+
+    @staticmethod
+    def _sample_many(policy: Policy, requests: list[PolicyRequest]) -> list[list[PolicyDecision]]:
+        return [
+            [RolloutRunner._mask_illegal_decision(d, r.observation) for d in decisions]
+            for r, decisions in zip(requests, sample_many(policy, requests), strict=True)
+        ]
+
+    @staticmethod
+    def _advance(state, observation, decision, *, loss_mask):
+        result = (
+            state.manager.step(decision.action)
+            if decision.action is not None
+            else state.manager.step_text(decision.text)
+        )
+        turn = RolloutRunner._turn(len(state.rollout.turns), observation, decision, result)
+        turn.loss_mask = loss_mask
+        state.rollout.turns.append(turn)
+        state.rollout.sampled_tokens += decision.token_count
 
     def run(
         self,

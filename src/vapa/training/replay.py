@@ -7,7 +7,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 
 from vapa.policies.base import Policy
-from vapa.rollouts import Rollout, RolloutRunner
+from vapa.rollouts import ForkSpec, Rollout, RolloutRunner
 from vapa.schemas import ActionKind, Episode
 
 
@@ -105,19 +105,18 @@ def build_fork_branches(
     if siblings_per_fork < 1:
         return ()
     by_id: Mapping[str, Rollout] = {rollout.rollout_id: rollout for rollout in base_rollouts}
-    branches: list[Rollout] = []
+    specs: list[ForkSpec] = []
     for ordinal, anchor in enumerate(anchors):
         if anchor.rollout_id not in by_id:
             raise ValueError(f"fork anchor references unknown rollout {anchor.rollout_id}")
-        branches.extend(
-            runner.fork(
+        specs.append(
+            ForkSpec(
                 episode,
                 by_id[anchor.rollout_id],
-                policy,
                 anchor_turn=anchor.turn_index,
                 siblings=siblings_per_fork,
                 seed=seed * 10_007 + ordinal,
                 allowed_actions=allowed_actions,
             )
         )
-    return tuple(branches)
+    return tuple(runner.fork_many(specs, policy))

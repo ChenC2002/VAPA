@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 from vapa.config import ExperimentConfig
 from vapa.policies.base import Policy
-from vapa.rollouts import Rollout, RolloutRunner
+from vapa.rollouts import Rollout, RolloutRunner, RolloutSpec
 from vapa.schemas import ActionKind, Episode
 from vapa.training.advantages import (
     AdvantageSummary,
@@ -267,15 +267,19 @@ class InstanceBatchBuilder:
         replay = self.config.replay
         credit = self.config.credit
         bases = tuple(
-            self.runner.run(
-                episode,
+            self.runner.run_many(
+                [
+                    RolloutSpec(
+                        episode,
+                        rollout_id=f"{occurrence_id}:base:{index}",
+                        seed=seed * 1_000_003 + index,
+                        instance_id=occurrence_id,
+                        allowed_actions=allowed_actions,
+                    )
+                    for index in range(replay.base_group_size)
+                ],
                 policy,
-                rollout_id=f"{occurrence_id}:base:{index}",
-                seed=seed * 1_000_003 + index,
-                instance_id=occurrence_id,
-                allowed_actions=allowed_actions,
             )
-            for index in range(replay.base_group_size)
         )
         if credit.use_process_rewards:
             if self.verifiers is None:

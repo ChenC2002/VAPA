@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from vapa.actions import ActionParseError, parse_action
-from vapa.policies.base import PolicyDecision
+from vapa.policies.base import PolicyDecision, PolicyRequest
 from vapa.prompts import render_chat
 from vapa.schemas import ActionKind, Observation
 
@@ -18,6 +18,8 @@ class GeneratedCandidate:
     text: str
     token_ids: tuple[int, ...]
     log_probs: tuple[float, ...]
+    prompt_ids: tuple[int, ...] = ()
+    behavior_policy_id: str = ""
 
     def __post_init__(self) -> None:
         if not self.token_ids:
@@ -40,6 +42,19 @@ class GenerationBackend(Protocol):
         max_tokens: int,
         allowed_actions: tuple[ActionKind, ...],
     ) -> list[GeneratedCandidate]: ...
+
+
+@dataclass(frozen=True)
+class GenerationRequest:
+    messages: list[dict[str, str]]
+    n: int
+    seed: int
+    greedy: bool
+    temperature: float
+    top_p: float
+    top_k: int
+    max_tokens: int
+    allowed_actions: tuple[ActionKind, ...]
 
 
 class TextPolicy:
@@ -81,6 +96,37 @@ class TextPolicy:
             max_tokens=self.max_tokens,
             allowed_actions=observation.legal_actions,
         )
+        return self._decisions(candidates, observation, n)
+
+    def sample_many(self, requests: list[PolicyRequest]) -> list[list[PolicyDecision]]:
+        batch = getattr(self.backend, "generate_batch", None)
+        if not callable(batch):
+            return [self.sample(r.observation, rng=r.rng, n=r.n, greedy=r.greedy) for r in requests]
+        outputs = batch(
+            [
+                GenerationRequest(
+                    render_chat(r.observation, self.scaffold),
+                    r.n,
+                    r.rng.randrange(0, 2**63),
+                    r.greedy,
+                    0.0 if r.greedy else self.temperature,
+                    self.top_p,
+                    self.top_k,
+                    self.max_tokens,
+                    r.observation.legal_actions,
+                )
+                for r in requests
+            ]
+        )
+        if len(outputs) != len(requests):
+            raise RuntimeError("generation batch returned the wrong number of requests")
+        return [
+            self._decisions(candidates, request.observation, request.n)
+            for request, candidates in zip(requests, outputs, strict=True)
+        ]
+
+    @staticmethod
+    def _decisions(candidates, observation: Observation, n: int) -> list[PolicyDecision]:
         if len(candidates) != n:
             raise RuntimeError(
                 f"generation backend returned {len(candidates)} candidates; expected {n}"
@@ -100,6 +146,8 @@ class TextPolicy:
                     token_count=len(candidate.token_ids),
                     token_ids=candidate.token_ids,
                     behavior_log_probs=candidate.log_probs,
+                    prompt_ids=candidate.prompt_ids,
+                    behavior_policy_id=candidate.behavior_policy_id,
                 )
             )
         return decisions

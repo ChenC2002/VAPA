@@ -153,6 +153,28 @@ run directory, use `--resume-from` for SFT or `--resume` for RL.
 
 </details>
 
+<details>
+<summary>Batched rollouts and optional vLLM</summary>
+
+Add `--batched-rollouts` to the RL command to advance base trajectories and fork
+siblings together. Episode admission, token budgets, and the training objective stay
+the same. Transformers remains the default generation backend.
+
+For the optional Linux/CUDA backend, install `'.[train,vllm]'`, set
+`VLLM_USE_V2_MODEL_RUNNER=0`, and add `--generation-backend vllm --batched-rollouts`.
+This pins vLLM 0.31.0 and supports colocated bfloat16 LoRA training; the
+HF-dequantized GPT-OSS configuration is not supported. Adjust
+`--vllm-gpu-memory-utilization` and `--vllm-max-num-seqs` for your GPU.
+Adapter hashes and pre-update log-probability differences are saved in `metrics.jsonl`.
+
+CPU tests cover batching, masks, synchronization, and resume. To run the opt-in GPU
+acceptance test, set `VAPA_VLLM_TEST_MODEL` to a supported causal model with
+`q_proj`/`v_proj` modules and
+`VAPA_VLLM_TEST_REVISION` to its commit, then run `pytest -m vllm`.
+GPU compatibility and throughput need to be checked on your target model and hardware.
+
+</details>
+
 ### 4. Evaluate
 
 Run the reference policy on the prepared examples:

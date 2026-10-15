@@ -22,6 +22,7 @@ import os
 import tempfile
 import tomllib
 from collections.abc import Iterable, Mapping, Sequence
+from contextlib import ExitStack
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Protocol
@@ -242,6 +243,10 @@ class TransformersLoadOptions:
     allow_base_initialization: bool = False
     scaffold: str = ""
 
+    generation_backend: str = "transformers"
+    vllm_gpu_memory_utilization: float = 0.4
+    vllm_max_num_seqs: int = 32
+
     def __post_init__(self) -> None:
         if not isinstance(self.model_revision, str) or not self.model_revision.strip():
             raise ValueError("model_revision must be an immutable non-empty revision")
@@ -289,6 +294,27 @@ class TransformersLoadOptions:
             )
         if any(not isinstance(item, str) or not item.strip() for item in self.lora_target_modules):
             raise ValueError("LoRA target modules must be non-empty strings")
+        if self.generation_backend not in {"transformers", "vllm"}:
+            raise ValueError("generation_backend must be transformers or vllm")
+        if (
+            isinstance(self.vllm_gpu_memory_utilization, bool)
+            or not isinstance(self.vllm_gpu_memory_utilization, int | float)
+            or not 0 < self.vllm_gpu_memory_utilization < 1
+        ):
+            raise ValueError("vllm_gpu_memory_utilization must be between zero and one")
+        if type(self.vllm_max_num_seqs) is not int or self.vllm_max_num_seqs < 1:
+            raise ValueError("vllm_max_num_seqs must be a positive integer")
+        if self.generation_backend == "vllm" and not self.lora_enabled:
+            raise ValueError("vLLM generation currently requires LoRA training")
+
+
+class RolloutBackend(Protocol):
+    """Optional sampling-phase resources; never owns optimization or advantages."""
+
+    def prepare_sampling(self, version: int) -> None: ...
+    def prepare_training(self) -> None: ...
+    def behavior_diagnostics(self, update: UpdateBatch, *, scaffold: str) -> dict[str, object]: ...
+    def close(self) -> None: ...
 
 
 @dataclass(slots=True)
@@ -309,6 +335,7 @@ class TrainingComponents:
     initialization_identity: Mapping[str, object] | None = None
     policy_scaffold: str = ""
     supports_distributed: bool = False
+    rollout_backend: RolloutBackend | None = None
     initial_state_sha256: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -384,7 +411,7 @@ class ContextLimitedPolicy:
         self.context_tokens = context_tokens
         self.reserved_generation_tokens = reserved_generation_tokens
 
-    def sample(self, observation, *, rng, n: int = 1, greedy: bool = False):
+    def _prompt_length(self, observation):
         prompt_tokens = len(
             self.tokenizer.encode_messages(
                 render_chat(observation, self.scaffold),
@@ -395,13 +422,31 @@ class ContextLimitedPolicy:
             raise TrainingLifecycleError(
                 "rendered policy prompt plus max_turn_tokens exceeds context_tokens"
             )
-        decisions = self.policy.sample(observation, rng=rng, n=n, greedy=greedy)
+        return prompt_tokens
+
+    def _check_decisions(self, prompt_tokens, decisions):
         for decision in decisions:
             if prompt_tokens + decision.token_count > self.context_tokens:
                 raise TrainingLifecycleError(
                     "sampled action exceeds the configured full-context token cap"
                 )
         return decisions
+
+    def sample(self, observation, *, rng, n: int = 1, greedy: bool = False):
+        prompt_tokens = self._prompt_length(observation)
+        return self._check_decisions(
+            prompt_tokens, self.policy.sample(observation, rng=rng, n=n, greedy=greedy)
+        )
+
+    def sample_many(self, requests):
+        from vapa.policies.base import sample_many
+
+        lengths = [self._prompt_length(r.observation) for r in requests]
+        outputs = sample_many(self.policy, requests)
+        return [
+            self._check_decisions(length, decisions)
+            for length, decisions in zip(lengths, outputs, strict=True)
+        ]
 
 
 class SampledTokenCosineScheduler:
@@ -523,6 +568,7 @@ class RLRunSettings:
     demo_catalogs: bool = False
     allow_non_paper_exact: bool = False
     content_kind: str = "credentialed"
+    batched_rollouts: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.run_id, str) or not self.run_id.strip():
@@ -543,7 +589,13 @@ class RLRunSettings:
             raise ValueError("Eq. 9 uses a log-policy objective without ratio clipping")
         if self.kl_mode != "forward":
             raise ValueError("Eq. 9 requires full-vocabulary forward KL")
-        for name in ("deterministic", "dry_run", "demo_catalogs", "allow_non_paper_exact"):
+        for name in (
+            "deterministic",
+            "dry_run",
+            "demo_catalogs",
+            "allow_non_paper_exact",
+            "batched_rollouts",
+        ):
             if not isinstance(getattr(self, name), bool):
                 raise TypeError(f"{name} must be boolean")
         try:
@@ -1180,6 +1232,13 @@ def validate_transformers_load_plan(
     """Validate immutable metadata and an SFT checkpoint without torch/Transformers."""
 
     spec = transformers_inference_spec(config, options)
+    if options.generation_backend == "vllm":
+        if spec.dequantize_mxfp4:
+            raise ValueError("vLLM generation does not support this HF-dequantized MXFP4 load plan")
+        if config.model.dtype != "bfloat16":
+            raise ValueError("the optional vLLM training integration currently requires bfloat16")
+        if config.optimization.lora_rank not in {1, 2, 4, 8, 16, 32, 64, 128, 256, 320, 512}:
+            raise ValueError("unsupported vLLM LoRA rank")
     if options.sft_checkpoint is None:
         return
     checkpoint = options.sft_checkpoint
@@ -1234,10 +1293,19 @@ def build_transformers_components(
     from vapa.policies.text import TextPolicy
 
     inference_spec = transformers_inference_spec(config, options)
+    if options.generation_backend == "vllm":
+        validate_transformers_load_plan(config, options)
+        from vapa.model.vllm_backend import load_vllm
+
+        load_vllm()
+        if options.local_files_only and os.environ.get("HF_HUB_OFFLINE") != "1":
+            raise ValueError("set HF_HUB_OFFLINE=1 for vLLM --local-files-only")
     use_processor = inference_spec.use_processor
     tokenizer_name = inference_spec.tokenizer_name
     tokenizer_revision = inference_spec.tokenizer_revision
     device = resolve_device(options.device, local_rank=distributed.local_rank)
+    if options.generation_backend == "vllm" and str(device) not in {"cuda", "cuda:0"}:
+        raise ValueError("the colocated vLLM backend requires the actor on cuda:0")
     common = {
         "revision": options.model_revision,
         "local_files_only": options.local_files_only,
@@ -1309,6 +1377,22 @@ def build_transformers_components(
         tokenizer,
         context_tokens=config.environment.context_tokens,
     )
+    rollout_backend = None
+    if options.generation_backend == "vllm":
+        from vapa.model.vllm_backend import VLLMGenerationBackend
+
+        rollout_backend = VLLMGenerationBackend(
+            actor,
+            tokenizer,
+            model=config.model.name,
+            revision=options.model_revision,
+            context_tokens=config.environment.context_tokens,
+            max_lora_rank=config.optimization.lora_rank,
+            dtype=config.model.dtype,
+            gpu_memory_utilization=options.vllm_gpu_memory_utilization,
+            max_num_seqs=options.vllm_max_num_seqs,
+        )
+        backend = rollout_backend
     policy = TextPolicy(
         backend,
         temperature=config.model.temperature,
@@ -1336,12 +1420,17 @@ def build_transformers_components(
         optimizer=optimizer,
         scheduler=scheduler,
         store=TorchStateStore(),
-        component_id="vapa:transformers-v1",
+        component_id=(
+            "vapa:transformers-v1"
+            if rollout_backend is None
+            else "vapa:transformers-v1+vllm-0.31.0-v1"
+        ),
         optimizer_name="torch-adamw",
         scheduler_name="sampled-token-warmup-cosine-v1",
         inference_spec=inference_spec.to_dict(),
         initialization_identity=initialization_identity,
         policy_scaffold=options.scaffold,
+        rollout_backend=rollout_backend,
     )
 
 
@@ -1660,6 +1749,7 @@ def _run_manifest(
         "scaffold_sha256": hashlib.sha256(settings.scaffold.encode("utf-8")).hexdigest(),
         "scaffold_size_bytes": len(settings.scaffold.encode("utf-8")),
         "deterministic": settings.deterministic,
+        "batched_rollouts": settings.batched_rollouts,
         "demo_catalogs": settings.demo_catalogs,
         "allow_non_paper_exact": settings.allow_non_paper_exact,
         "checkpoint_every": settings.checkpoint_every,
@@ -1702,6 +1792,7 @@ def _run_manifest(
         "ratio_clip": settings.ratio_clip,
         "kl_mode": settings.kl_mode,
         "scaffold_sha256": manifest["scaffold_sha256"],
+        "batched_rollouts": settings.batched_rollouts,
         "deterministic": settings.deterministic,
         "demo_catalogs": settings.demo_catalogs,
         "allow_non_paper_exact": settings.allow_non_paper_exact,
@@ -1890,6 +1981,37 @@ def run_vapa_training(
 ) -> TrainingResult:
     """Run sampling through checkpointing, or validate the exact plan in dry-run mode."""
 
+    with ExitStack() as resources:
+        return _run_vapa_training(
+            config_path,
+            episode_path,
+            output_directory,
+            component_factory=component_factory,
+            verifier_manifest=verifier_manifest,
+            calculator_manifest=calculator_manifest,
+            verifier_factory=verifier_factory,
+            outcome_scorer=outcome_scorer,
+            settings=settings,
+            distributed=distributed,
+            resources=resources,
+        )
+
+
+def _run_vapa_training(
+    config_path,
+    episode_path,
+    output_directory,
+    *,
+    component_factory,
+    verifier_manifest,
+    calculator_manifest,
+    verifier_factory,
+    outcome_scorer,
+    settings,
+    distributed,
+    resources: ExitStack,
+) -> TrainingResult:
+
     settings = settings or RLRunSettings()
     config_file = Path(config_path).resolve()
     episodes_file = Path(episode_path).resolve()
@@ -2020,6 +2142,10 @@ def run_vapa_training(
     components = component_factory(config, context)
     if not isinstance(components, TrainingComponents):
         raise TypeError("component factory did not return TrainingComponents")
+    if components.rollout_backend is not None:
+        resources.callback(components.rollout_backend.close)
+        if not settings.batched_rollouts:
+            raise ValueError("a managed rollout backend requires --batched-rollouts")
     if context.world_size > 1 and not components.supports_distributed:
         raise TrainingLifecycleError(
             "the selected component factory does not provide synchronized distributed training"
@@ -2091,7 +2217,9 @@ def run_vapa_training(
             calculators=calculators,
         )
 
-    runner = RolloutRunner(manager_factory, outcome_scorer=outcome_scorer)
+    runner = RolloutRunner(
+        manager_factory, outcome_scorer=outcome_scorer, batched=settings.batched_rollouts
+    )
     builder = InstanceBatchBuilder(config, runner, catalog)
     rollout_policy = ContextLimitedPolicy(
         components.policy,
@@ -2185,6 +2313,8 @@ def run_vapa_training(
         ):
             status = "max_optimizer_steps"
             break
+        if components.rollout_backend is not None:
+            components.rollout_backend.prepare_sampling(global_step)
         if config.replay.reallocate_disabled_forks:
             if not matched_ready:
                 if replay_quota_cursor >= len(quota_records):
@@ -2283,7 +2413,14 @@ def run_vapa_training(
             tuple(pending_stages),
         )
         report: TrainStepReport | None = None
+        behavior_drift = None
         if loss_update is not None and loss_update.trainable_tokens:
+            if components.rollout_backend is not None:
+                components.rollout_backend.prepare_training()
+                behavior_drift = components.rollout_backend.behavior_diagnostics(
+                    loss_update,
+                    scaffold=settings.scaffold,
+                )
             if isinstance(components.scheduler, SampledTokenCosineScheduler):
                 components.scheduler.prepare(ledger.spent_tokens)
             seed_everything(
@@ -2319,6 +2456,8 @@ def run_vapa_training(
             comparison_only=comparison_only,
             replay_quota=replay_quota,
         )
+        if behavior_drift is not None:
+            metric["behavior_logprob_drift"] = behavior_drift
         _append_jsonl(metrics_path, metric)
         metric_records += 1
         pending_instances.clear()
@@ -2471,7 +2610,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="permit explicitly supplied non-paper-exact research catalogs",
     )
     parser.add_argument("--nondeterministic", action="store_true")
+    parser.add_argument(
+        "--batched-rollouts",
+        action="store_true",
+        help="batch base and fork trajectories within each episode",
+    )
     model = parser.add_argument_group("built-in Transformers backend")
+    model.add_argument(
+        "--generation-backend", choices=("transformers", "vllm"), default="transformers"
+    )
+    model.add_argument("--vllm-gpu-memory-utilization", type=float, default=0.4)
+    model.add_argument("--vllm-max-num-seqs", type=int, default=32)
     model.add_argument("--model-revision", help="immutable commit revision")
     model.add_argument("--tokenizer-name")
     model.add_argument("--tokenizer-revision")
@@ -2511,6 +2660,13 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = build_parser()
     arguments = parser.parse_args(argv)
+    if arguments.generation_backend == "vllm":
+        if arguments.component_factory is not None:
+            parser.error("--generation-backend vllm cannot be combined with --component-factory")
+        if not arguments.batched_rollouts:
+            parser.error("--generation-backend vllm requires --batched-rollouts")
+        if arguments.model_revision is None:
+            parser.error("--generation-backend vllm requires --model-revision")
     if arguments.demo_catalogs:
 
         def demo_input(explicit: Path | None, name: str, flag: str) -> Path:
@@ -2566,6 +2722,9 @@ def main(argv: list[str] | None = None) -> int:
             sft_checkpoint=arguments.sft_checkpoint,
             allow_base_initialization=arguments.allow_base_model_init,
             scaffold=arguments.scaffold,
+            generation_backend=arguments.generation_backend,
+            vllm_gpu_memory_utilization=arguments.vllm_gpu_memory_utilization,
+            vllm_max_num_seqs=arguments.vllm_max_num_seqs,
         )
         if arguments.dry_run:
             validate_transformers_load_plan(load_config(arguments.config), options)
@@ -2584,6 +2743,7 @@ def main(argv: list[str] | None = None) -> int:
         demo_catalogs=arguments.demo_catalogs,
         allow_non_paper_exact=arguments.allow_non_paper_exact,
         content_kind=arguments.content_kind,
+        batched_rollouts=arguments.batched_rollouts,
     )
     result = run_vapa_training(
         arguments.config,

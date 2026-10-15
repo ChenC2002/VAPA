@@ -1337,7 +1337,9 @@ class TransformersGenerationBackend:
             text = self.tokenizer.decode_generated_action(generated, prefix_mask)
             if not text:
                 raise RuntimeError("the masked generation has no parser-visible action text")
-            candidates.append(GeneratedCandidate(text, tuple(generated), log_probs))
+            candidates.append(
+                GeneratedCandidate(text, tuple(generated), log_probs, tuple(prompt_ids))
+            )
         return candidates
 
     def binary_answer_probability(
