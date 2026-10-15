@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import math
 import runpy
+import statistics
 import sys
 import tempfile
 from collections.abc import Mapping
@@ -12,6 +13,81 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+
+
+def validate_cuda_results(result: dict, metrics: list[dict]) -> None:
+    """Check published metadata and arithmetic without claiming execution attestation."""
+    import hashlib
+
+    from vapa.artifacts import artifact_fingerprint, canonical_json_dumps
+
+    def sha(value):
+        return hashlib.sha256((canonical_json_dumps(value) + "\n").encode()).hexdigest()
+
+    def journal_sha(rows):
+        text = "".join(canonical_json_dumps(row) + "\n" for row in rows)
+        return hashlib.sha256(text.encode()).hexdigest()
+
+    if (
+        result["schema_version"] != "vapa-cuda-results-v1"
+        or result["paper_reproduction"] is not False
+        or not result["benchmarks"]
+    ):
+        raise ValueError("invalid CUDA result scope")
+    for report in result["benchmarks"]:
+        if not report["checks"] or any(value is not True for value in report["checks"].values()):
+            raise ValueError("CUDA benchmark has an unsuccessful acceptance check")
+        generation = report["generation"]
+        for mode in ("serial", "batched"):
+            trials = generation[mode]["trials"]
+            if len(trials) != report["settings"]["repeats"] or not trials:
+                raise ValueError("missing benchmark trials")
+            for trial in trials:
+                if (
+                    trial["seconds"] <= 0
+                    or trial["sampled_tokens"] <= 0
+                    or not math.isclose(
+                        trial["tokens_per_second"], trial["sampled_tokens"] / trial["seconds"]
+                    )
+                ):
+                    raise ValueError("incorrect measured token throughput")
+            if not math.isclose(
+                generation[mode]["median_tokens_per_second"],
+                statistics.median(t["tokens_per_second"] for t in trials),
+            ):
+                raise ValueError("incorrect median throughput")
+        parity = report["full_precision_parity"]
+        training = report["training"]
+        if (
+            not 0 <= generation["identical_sequences"] <= report["settings"]["requests"]
+            or not 0 <= parity["gradient_relative_l2_error"] < 1e-3
+            or abs(parity["loss"]["serial"] - parity["loss"]["batched"]) >= 1e-4
+            or training["batch_gradient_within_5_percent"]
+            != (training["gradient_relative_l2_error"] < 0.05)
+        ):
+            raise ValueError("inconsistent CUDA numerical diagnostics")
+    rl = result["rl"]
+    receipt, journal = rl["receipt"], rl["execution_journal"]
+    if (
+        not metrics
+        or receipt["paper_reproduction"] is not False
+        or receipt["stage"] != "rl"
+        or metrics[-1]["global_step"] != receipt["optimizer_updates"]
+        or metrics[-1]["sampled_tokens"] != receipt["sampled_tokens"]
+        or sum(row["action_tokens"] for row in metrics) != receipt["trainable_tokens"]
+        or [row["metric_index"] for row in metrics] != list(range(len(metrics)))
+        or sha(rl["resolved_config"]) != receipt["config_sha256"]
+        or sha(rl["run_manifest"]) != receipt["run_manifest_sha256"]
+        or journal_sha(metrics) != receipt["metrics_sha256"]
+        or journal_sha(journal) != receipt["execution_journal_sha256"]
+        or journal[-1]["checkpoint"] != receipt["checkpoint"]
+    ):
+        raise ValueError("CUDA run receipt, configuration, or log linkage disagrees")
+    previous = None
+    for record in journal:
+        if record["previous_sha256"] != previous:
+            raise ValueError("CUDA execution journal hash chain is broken")
+        previous = artifact_fingerprint(record)
 
 
 def _assert_result_matches(expected: object, actual: object, path: str = "results") -> None:
@@ -118,6 +194,12 @@ def main() -> int:
     training = load_json(root / "results/training_results.json")
     from vapa.data.io import load_jsonl
 
+    cuda = load_json(root / "results/cuda_results.json")
+    validate_cuda_results(cuda, load_jsonl(root / "logs/cuda_results.jsonl"))
+    for label, path in (("config", cuda["rl"]["config"]), ("episodes", cuda["rl"]["episodes"])):
+        recorded = cuda["rl"]["run_manifest"]["input_artifacts"][label]["sha256"]
+        if fingerprint_file(root / path).sha256 != recorded:
+            raise RuntimeError(f"CUDA fixture changed: {label}")
     training_tools["validate_results"](training, load_jsonl(root / "logs/training_results.jsonl"))
     expected_provenance = {
         "fixture": "examples/tiny_sft.jsonl",

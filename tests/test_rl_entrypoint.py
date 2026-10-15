@@ -6,6 +6,7 @@ import random
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -370,6 +371,41 @@ top_k = 0
     return config, episodes
 
 
+def test_episode_lookahead_respects_worst_case_update_and_curriculum_boundaries():
+    from vapa.config import ExperimentConfig
+    from vapa.training.curriculum import stage_at
+    from vapa.training.ledger import GroupCharge, TokenLedger
+    from vapa.training.rl_train import _safe_episode_batch_size
+
+    config = ExperimentConfig()
+    config = replace(
+        config,
+        environment=replace(config.environment, action_budget=2, turn_cap=3, max_turn_tokens=2),
+        replay=replace(config.replay, base_group_size=2, max_fork_states=1, siblings_per_fork=1),
+    )
+    upper_bound = 18
+    for target in (301, 302, 303):
+        for spent in range(target):
+            ledger = TokenLedger(target, 100, spent_tokens=spent)
+            size = _safe_episode_batch_size(config, ledger, 8)
+            before_last = upper_bound * (size - 1)
+            assert 1 <= size <= 8
+            assert before_last < ledger.tokens_until_update
+            assert stage_at(spent + before_last, target) == stage_at(spent, target)
+    ledger = TokenLedger(1000, 100)
+    assert _safe_episode_batch_size(config, ledger, 8) == 6
+    ledger.add(GroupCharge("first", 90, 90))
+    assert _safe_episode_batch_size(config, ledger, 8) == 1
+
+
+@pytest.mark.parametrize("size", [0, True, 1.5])
+def test_episode_batch_size_is_validated(size):
+    with pytest.raises(ValueError, match="positive integer"):
+        RLRunSettings(rollout_episode_batch_size=size)
+    with pytest.raises(ValueError, match="requires batched"):
+        RLRunSettings(rollout_episode_batch_size=2)
+
+
 def _factory_sink(
     sink: list[TrainingComponents],
     *,
@@ -539,7 +575,61 @@ def test_full_rl_lifecycle_resumes_and_trains_final_budget_crossing_group(tmp_pa
     assert uninterrupted_stacks[-1].actor.weight == pytest.approx(stacks[-1].actor.weight)
 
 
-def test_managed_rollout_barriers_resume_and_close_on_failure(tmp_path: Path):
+def test_cross_episode_lifecycle_matches_serial_and_resumes(tmp_path):
+    config, episodes = _write_inputs(tmp_path)
+    config.write_text(
+        config.read_text()
+        .replace("max_turn_tokens = 8", "max_turn_tokens = 2")
+        .replace("sampled_token_budget = 13", "sampled_token_budget = 303")
+        .replace("update_token_floor = 6", "update_token_floor = 80")
+    )
+
+    class BatchPolicy(SeededAnswerPolicy):
+        widths = []
+
+        def sample_many(self, requests):
+            self.widths.append(len(requests))
+            return [self.sample(r.observation, rng=r.rng, n=r.n, greedy=r.greedy) for r in requests]
+
+    policy, stacks, outputs = BatchPolicy(), [], []
+    factory = _factory_sink(stacks, policy=policy)
+    for size in (1, 4):
+        output = tmp_path / f"batch-{size}"
+        options = dict(
+            component_factory=factory,
+            verifier_manifest=Path("examples/demo_verifier_catalog.json"),
+            calculator_manifest=Path("examples/tiny_calculators.json"),
+        )
+        settings = RLRunSettings(
+            demo_catalogs=True, batched_rollouts=True, rollout_episode_batch_size=size
+        )
+        stopped = run_vapa_training(
+            config,
+            episodes,
+            output,
+            **options,
+            settings=replace(settings, max_optimizer_steps=1),
+        )
+        result = run_vapa_training(
+            config,
+            episodes,
+            output,
+            **options,
+            settings=replace(settings, resume_from=stopped.checkpoint_path),
+        )
+        metrics = [json.loads(line) for line in (output / "metrics.jsonl").read_text().splitlines()]
+        for row in metrics:
+            row.pop("host_phase_seconds")
+        outputs.append((result.sampled_tokens, stacks[-1].actor.weight, metrics))
+    assert outputs[0] == outputs[1]
+    assert max(policy.widths) >= 6
+
+
+def test_managed_rollout_barriers_resume_and_close_on_failure(tmp_path: Path, monkeypatch):
+    from vapa.training import rl_train
+
+    ticks = iter(range(1000))
+    monkeypatch.setattr(rl_train, "time", SimpleNamespace(perf_counter=lambda: next(ticks)))
     config, episodes = _write_inputs(tmp_path)
     stacks, phases = [], []
     base_factory = _factory_sink(stacks)
@@ -592,10 +682,49 @@ def test_managed_rollout_barriers_resume_and_close_on_failure(tmp_path: Path):
     )
     assert resumed.global_step == 2
     assert phases[-1].events == [("sample", 1), ("sleep", 1), ("audit", 1), ("close", 2)]
+    metrics = [
+        json.loads(line) for line in (tmp_path / "run/metrics.jsonl").read_text().splitlines()
+    ]
+    assert len(metrics) == 2
+    for metric in metrics:
+        assert metric["host_phase_seconds"] == dict.fromkeys(
+            ("rollout_sync", "rollout_and_scoring", "training_sync", "behavior_audit", "optimizer"),
+            1.0,
+        )
     Backend.fail = True
     with pytest.raises(RuntimeError, match="injected sampling"):
         run_vapa_training(config, episodes, tmp_path / "failed", settings=settings, **kwargs)
     assert phases[-1].events == [("sample", 0), ("close", 0)]
+
+
+def test_phase_timings_accumulate_pending_instances_and_reset_between_updates(
+    tmp_path, monkeypatch
+):
+    from vapa.training import rl_train
+
+    ticks = iter(range(1000))
+    monkeypatch.setattr(rl_train, "time", SimpleNamespace(perf_counter=lambda: next(ticks)))
+    config, episodes = _write_inputs(tmp_path)
+    config.write_text(
+        config.read_text().replace("update_token_floor = 6", "update_token_floor = 12")
+    )
+    run_vapa_training(
+        config,
+        episodes,
+        tmp_path / "run",
+        component_factory=_factory_sink([]),
+        verifier_manifest=Path("examples/demo_verifier_catalog.json"),
+        calculator_manifest=Path("examples/tiny_calculators.json"),
+        settings=RLRunSettings(demo_catalogs=True),
+    )
+    metrics = [
+        json.loads(line) for line in (tmp_path / "run/metrics.jsonl").read_text().splitlines()
+    ]
+    assert [m["host_phase_seconds"]["rollout_and_scoring"] for m in metrics] == [2.0, 1.0]
+    for metric in metrics:
+        timing = metric["host_phase_seconds"]
+        assert timing["optimizer"] == 1.0
+        assert timing["rollout_sync"] == timing["training_sync"] == timing["behavior_audit"] == 0.0
 
 
 def test_resume_rejects_a_different_frozen_reference_initialization(tmp_path: Path):

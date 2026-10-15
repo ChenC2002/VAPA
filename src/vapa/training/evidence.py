@@ -36,7 +36,16 @@ _FINISHED_STATUSES = {"complete", "stopped", "max_optimizer_steps"}
 
 def software_environment() -> dict[str, object]:
     packages = {}
-    for name in ("vapa-ehr", "torch", "transformers", "peft", "tokenizers", "numpy", "accelerate"):
+    for name in (
+        "vapa-ehr",
+        "torch",
+        "transformers",
+        "peft",
+        "tokenizers",
+        "numpy",
+        "accelerate",
+        "vllm",
+    ):
         try:
             packages[name] = version(name)
         except PackageNotFoundError:

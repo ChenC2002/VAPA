@@ -11,7 +11,7 @@ venv/
 /dist/
 .DS_Store
 
-# Private run artifacts are ignored; only reviewed demo snapshots are retained.
+# Private run artifacts are ignored; only reviewed result snapshots are retained.
 /data/
 artifacts/
 checkpoints/
@@ -19,10 +19,12 @@ checkpoints/
 !/results/demo_results.json
 !/results/paper_results.json
 !/results/training_results.json
+!/results/cuda_results.json
 /logs/*
 !/logs/demo_results.jsonl
 !/logs/paper_results.jsonl
 !/logs/training_results.jsonl
+!/logs/cuda_results.jsonl
 runs/
 wandb/
 .env

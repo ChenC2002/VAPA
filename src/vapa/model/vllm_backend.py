@@ -91,13 +91,20 @@ class VLLMGenerationBackend:
             enable_lora=True,
             max_lora_rank=max_lora_rank,
             max_loras=1,
+            max_cpu_loras=1,
             enable_prefix_caching=True,
             enable_sleep_mode=True,
             gpu_memory_utilization=gpu_memory_utilization,
             max_num_seqs=max_num_seqs,
             logprobs_mode="processed_logprobs",
             generation_config="vllm",
-            skip_tokenizer_init=True,
+            # Multimodal backbones may require a tokenizer even in text-only
+            # mode. Requests still carry our exact prompt_token_ids: vLLM never
+            # renders a chat template or retokenizes these prompts.
+            skip_tokenizer_init=False,
+            tokenizer=model,
+            tokenizer_revision=revision,
+            language_model_only=True,
             trust_remote_code=False,
             load_format="safetensors",
             logits_processors=["vapa.model.vllm_mask:ActionPrefixLogitsProcessor"],
@@ -150,13 +157,10 @@ class VLLMGenerationBackend:
                 )
             files = {file.name: sha256_file(file) for file in required}
             adapter = self._lora_type(f"actor-{self._next_id}", self._next_id, str(path))
-            if self.adapter is not None:
-                if not self.engine.llm_engine.remove_lora(self.adapter.lora_int_id):
-                    raise RuntimeError("vLLM did not unload the previous actor adapter")
             if not self.engine.reset_prefix_cache():
                 raise RuntimeError("vLLM could not clear stale prefix cache at the update barrier")
-            if not self.engine.llm_engine.add_lora(adapter):
-                raise RuntimeError("vLLM did not load the new actor adapter")
+            # generate(lora_request=...) loads the snapshot using vLLM's bounded
+            # adapter cache. Do not duplicate its loading/eviction implementation.
         except BaseException:
             snapshot.cleanup()
             self.close()
@@ -188,6 +192,8 @@ class VLLMGenerationBackend:
         self._closed = True
         try:
             if self.engine is not None:
+                # vLLM 0.31's offline LLM has no public close method. Keep this
+                # version-pinned lifecycle exception isolated from training code.
                 self.engine.llm_engine.engine_core.shutdown()
         finally:
             if self._snapshot is not None:
@@ -237,6 +243,7 @@ class VLLMGenerationBackend:
                     top_k=request.top_k or -1,
                     max_tokens=request.max_tokens,
                     logprobs=0,
+                    watermarking=False,
                     detokenize=False,
                     ignore_eos=True,
                     stop_token_ids=stop_ids,
@@ -248,6 +255,11 @@ class VLLMGenerationBackend:
             outputs = self.engine.generate(
                 prompts, params, lora_request=self.adapter, use_tqdm=False
             )
+        except BaseException:
+            # Includes lazy adapter-load failures: never reuse a potentially
+            # partially updated engine or silently fall back to the base model.
+            self.close()
+            raise
         finally:
             self._generating = False
         if len(outputs) != len(requests):

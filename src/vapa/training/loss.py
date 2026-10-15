@@ -1,10 +1,46 @@
-"""Dependency-free reference for the log-policy objective and forward KL (Eq. 9)."""
+"""Eq. 9: a scalar reference and an optional, framework-independent PyTorch kernel."""
 
 from __future__ import annotations
 
 import math
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from torch import Tensor
+
+
+def action_token_sums(
+    actor_logits: Tensor,
+    reference_logits: Tensor,
+    targets: Tensor,
+    *,
+    advantage: float,
+) -> tuple[Tensor, Tensor]:
+    """Return unnormalized policy and KL(actor || reference) sums for one action.
+
+    Inputs are [tokens, vocabulary] logits with identical legal support; excluded
+    entries are -inf and each row must admit its target token. Grammar enforcement
+    belongs to the caller. Normalize once by the *global* eligible-token count,
+    not by a mean of microbatch means. The reference never receives gradients.
+
+    No model, trainer, rollout engine, or behavior-probability dependency is needed.
+    Importing this module still works without PyTorch installed.
+    """
+    import torch
+
+    if actor_logits.ndim != 2 or actor_logits.shape != reference_logits.shape:
+        raise ValueError("actor and reference logits must have matching [tokens, vocabulary] shape")
+    if targets.shape != actor_logits.shape[:1] or not targets.numel():
+        raise ValueError("targets must contain one token ID for each nonempty logit row")
+    actor_log = torch.log_softmax(actor_logits.float(), dim=-1)
+    reference_log = torch.log_softmax(reference_logits.detach().float(), dim=-1)
+    sampled_log = actor_log.gather(-1, targets.unsqueeze(-1)).squeeze(-1)
+    # Avoid (-inf)-(-inf) and its NaN gradients on excluded vocabulary entries.
+    excluded = torch.isneginf(actor_log)
+    difference = actor_log.masked_fill(excluded, 0.0) - reference_log.masked_fill(excluded, 0.0)
+    return -advantage * sampled_log.sum(), (actor_log.exp() * difference).sum()
 
 
 @dataclass(frozen=True)

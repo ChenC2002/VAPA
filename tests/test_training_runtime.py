@@ -967,6 +967,38 @@ def _logit_row(vocab_size):
     return [((index * 17) % 23) / 10.0 for index in range(vocab_size)]
 
 
+@pytest.mark.parametrize("batched", [False, True])
+def test_chat_template_mapping_outputs_preserve_prompt_and_completion_ids(batched):
+    from collections import UserDict
+
+    class MappingTokenizer(_QwenClosedThinkingTokenizer):
+        def apply_chat_template(self, messages, **kwargs):
+            encoded = super().apply_chat_template(messages, **kwargs)
+            if not kwargs["tokenize"]:
+                return encoded
+            return UserDict(input_ids=[encoded] if batched else encoded)
+
+    options = {"enable_thinking": False}
+    expected = transformers_backend.TransformersTokenizerAdapter(
+        _QwenClosedThinkingTokenizer(), chat_template_kwargs=options
+    )
+    actual = transformers_backend.TransformersTokenizerAdapter(
+        MappingTokenizer(), chat_template_kwargs=options
+    )
+    messages = [{"role": "user", "content": "question"}]
+    assert actual.encode_messages(messages) == expected.encode_messages(messages)
+    assert actual.action_prefix_mask(messages, (ActionKind.ANSWER,)) == (
+        expected.action_prefix_mask(messages, (ActionKind.ANSWER,))
+    )
+    assert actual._assistant_continuation_ids(messages, "Answer(1, [])") == (
+        expected._assistant_continuation_ids(messages, "Answer(1, [])")
+    )
+    with pytest.raises(ValueError, match="not a batch"):
+        actual._token_ids({"input_ids": [[1], [2]]})
+    with pytest.raises(ValueError, match="missing input_ids"):
+        actual._token_ids({"attention_mask": [1]})
+
+
 def test_transformers_feasible_prefix_mask_matches_behavior_and_training(monkeypatch):
     fake_torch = _FakeTorch()
     monkeypatch.setattr(transformers_backend, "_require_torch", lambda: fake_torch)
@@ -995,7 +1027,7 @@ def test_transformers_feasible_prefix_mask_matches_behavior_and_training(monkeyp
         def __init__(self):
             self.callback = None
 
-        def __call__(self, *, input_ids, attention_mask):
+        def __call__(self, *, input_ids, attention_mask, use_cache=False):
             del attention_mask
             length = input_ids.shape[-1]
             logits = [[list(raw_row) for _ in range(length)]]
@@ -1074,7 +1106,7 @@ def test_qwen_generation_only_thinking_preamble_keeps_action_boundary_stable(mon
     class GenerateModel:
         config = type("Config", (), {"vocab_size": prefix_mask.vocab_size})()
 
-        def __call__(self, *, input_ids, attention_mask):
+        def __call__(self, *, input_ids, attention_mask, use_cache=False):
             del attention_mask
             logits = [[list(raw_row) for _ in range(input_ids.shape[-1])]]
             return type("Output", (), {"logits": _NumericTensor(logits)})()
@@ -1193,7 +1225,7 @@ def test_gpt_oss_template_preamble_is_masked_trained_and_hidden_from_parser(monk
     class GenerateModel:
         config = type("Config", (), {"vocab_size": prefix_mask.vocab_size})()
 
-        def __call__(self, *, input_ids, attention_mask):
+        def __call__(self, *, input_ids, attention_mask, use_cache=False):
             del attention_mask
             logits = [[list(raw_row) for _ in range(input_ids.shape[-1])]]
             return type("Output", (), {"logits": _NumericTensor(logits)})()
@@ -1280,7 +1312,7 @@ def test_gpt_oss_truncated_reasoning_remains_a_charged_malformed_candidate(monke
     class TruncatedReasoningModel:
         config = type("Config", (), {"vocab_size": prefix_mask.vocab_size})()
 
-        def __call__(self, *, input_ids, attention_mask):
+        def __call__(self, *, input_ids, attention_mask, use_cache=False):
             del attention_mask
             logits = [[list(raw_row) for _ in range(input_ids.shape[-1])]]
             return type("Output", (), {"logits": _NumericTensor(logits)})()
@@ -1367,7 +1399,7 @@ def test_binary_answer_probability_uses_strict_fixed_position_and_text_policy(mo
         def __init__(self):
             self.last_input = None
 
-        def __call__(self, *, input_ids, attention_mask):
+        def __call__(self, *, input_ids, attention_mask, use_cache=False):
             del attention_mask
             self.last_input = input_ids.tolist()[0]
             row = [0.0] * 256
@@ -1438,7 +1470,7 @@ def test_binary_answer_probability_keeps_sampled_gpt_reasoning_context(monkeypat
         def __init__(self):
             self.last_input = None
 
-        def __call__(self, *, input_ids, attention_mask):
+        def __call__(self, *, input_ids, attention_mask, use_cache=False):
             del attention_mask
             self.last_input = input_ids.tolist()[0]
             row = [0.0] * 256

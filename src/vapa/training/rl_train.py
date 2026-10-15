@@ -20,6 +20,7 @@ import json
 import math
 import os
 import tempfile
+import time
 import tomllib
 from collections.abc import Iterable, Mapping, Sequence
 from contextlib import ExitStack
@@ -246,6 +247,7 @@ class TransformersLoadOptions:
     generation_backend: str = "transformers"
     vllm_gpu_memory_utilization: float = 0.4
     vllm_max_num_seqs: int = 32
+    train_batch_tokens: int = 0
 
     def __post_init__(self) -> None:
         if not isinstance(self.model_revision, str) or not self.model_revision.strip():
@@ -304,6 +306,8 @@ class TransformersLoadOptions:
             raise ValueError("vllm_gpu_memory_utilization must be between zero and one")
         if type(self.vllm_max_num_seqs) is not int or self.vllm_max_num_seqs < 1:
             raise ValueError("vllm_max_num_seqs must be a positive integer")
+        if type(self.train_batch_tokens) is not int or self.train_batch_tokens < 0:
+            raise ValueError("train_batch_tokens must be a nonnegative integer")
         if self.generation_backend == "vllm" and not self.lora_enabled:
             raise ValueError("vLLM generation currently requires LoRA training")
 
@@ -426,6 +430,8 @@ class ContextLimitedPolicy:
 
     def _check_decisions(self, prompt_tokens, decisions):
         for decision in decisions:
+            if decision.token_count > self.reserved_generation_tokens:
+                raise TrainingLifecycleError("sampled action exceeds max_turn_tokens")
             if prompt_tokens + decision.token_count > self.context_tokens:
                 raise TrainingLifecycleError(
                     "sampled action exceeds the configured full-context token cap"
@@ -569,6 +575,7 @@ class RLRunSettings:
     allow_non_paper_exact: bool = False
     content_kind: str = "credentialed"
     batched_rollouts: bool = False
+    rollout_episode_batch_size: int = 1
 
     def __post_init__(self) -> None:
         if not isinstance(self.run_id, str) or not self.run_id.strip():
@@ -589,6 +596,10 @@ class RLRunSettings:
             raise ValueError("Eq. 9 uses a log-policy objective without ratio clipping")
         if self.kl_mode != "forward":
             raise ValueError("Eq. 9 requires full-vocabulary forward KL")
+        if type(self.rollout_episode_batch_size) is not int or self.rollout_episode_batch_size < 1:
+            raise ValueError("rollout_episode_batch_size must be a positive integer")
+        if self.rollout_episode_batch_size > 1 and not self.batched_rollouts:
+            raise ValueError("rollout_episode_batch_size > 1 requires batched_rollouts")
         for name in (
             "deterministic",
             "dry_run",
@@ -1318,6 +1329,7 @@ def build_transformers_components(
         device=device,
         dtype=config.model.dtype,
         model_kind=options.model_kind,
+        forward_batch_tokens=options.train_batch_tokens,
         **common,
     )
     if options.lora_enabled:
@@ -1750,6 +1762,7 @@ def _run_manifest(
         "scaffold_size_bytes": len(settings.scaffold.encode("utf-8")),
         "deterministic": settings.deterministic,
         "batched_rollouts": settings.batched_rollouts,
+        "rollout_episode_batch_size": settings.rollout_episode_batch_size,
         "demo_catalogs": settings.demo_catalogs,
         "allow_non_paper_exact": settings.allow_non_paper_exact,
         "checkpoint_every": settings.checkpoint_every,
@@ -1793,6 +1806,7 @@ def _run_manifest(
         "kl_mode": settings.kl_mode,
         "scaffold_sha256": manifest["scaffold_sha256"],
         "batched_rollouts": settings.batched_rollouts,
+        "rollout_episode_batch_size": settings.rollout_episode_batch_size,
         "deterministic": settings.deterministic,
         "demo_catalogs": settings.demo_catalogs,
         "allow_non_paper_exact": settings.allow_non_paper_exact,
@@ -1964,6 +1978,29 @@ def _sample_matched_allocation_stratum(
 
 def _rank_output(output: Path, context: DistributedContext) -> Path:
     return output if context.world_size == 1 else output / f"rank-{context.rank:05d}"
+
+
+def _safe_episode_batch_size(config: ExperimentConfig, ledger: TokenLedger, requested: int) -> int:
+    """Conservative lookahead that cannot change serial admission boundaries.
+
+    Every instance before the last must fit strictly before the next update,
+    run target, and curriculum gate, even if all trajectories hit their caps.
+    """
+    replay = config.replay
+    trajectories = replay.base_group_size
+    if config.credit.use_step_credit and replay.fork_enabled:
+        trajectories += replay.max_fork_states * replay.siblings_per_fork
+    upper_bound = trajectories * config.environment.turn_cap * config.environment.max_turn_tokens
+    stage = stage_at(ledger.spent_tokens, ledger.target_tokens)
+    count = 1
+    while count < requested:
+        preceding_tokens = count * upper_bound
+        if preceding_tokens >= ledger.tokens_until_update:
+            break
+        if stage_at(ledger.spent_tokens + preceding_tokens, ledger.target_tokens) != stage:
+            break
+        count += 1
+    return count
 
 
 def run_vapa_training(
@@ -2301,6 +2338,13 @@ def _run_vapa_training(
     pending_instances: list[InstanceBatch] = []
     pending_stages: list[CurriculumStage] = []
     matched_ready: list[tuple[InstanceBatch, CurriculumStage]] = []
+    sampled_ready: list[tuple[InstanceBatch, CurriculumStage, Episode]] = []
+    # Host wall time, without CUDA synchronization or checkpoint/I/O profiling.
+    # Matched-stratum prefetch is charged where it happens, not to later dequeues.
+    phase_seconds = dict.fromkeys(
+        ("rollout_sync", "rollout_and_scoring", "training_sync", "behavior_audit", "optimizer"),
+        0.0,
+    )
     status = "complete"
     while not ledger.complete or (
         config.replay.reallocate_disabled_forks
@@ -2314,7 +2358,10 @@ def _run_vapa_training(
             status = "max_optimizer_steps"
             break
         if components.rollout_backend is not None:
+            started = time.perf_counter()
             components.rollout_backend.prepare_sampling(global_step)
+            phase_seconds["rollout_sync"] += time.perf_counter() - started
+        started = time.perf_counter()
         if config.replay.reallocate_disabled_forks:
             if not matched_ready:
                 if replay_quota_cursor >= len(quota_records):
@@ -2340,29 +2387,33 @@ def _run_vapa_training(
                 )
             instance, stage = matched_ready.pop(0)
         else:
-            stage = stage_at(ledger.spent_tokens, ledger.target_tokens)
-            episode = stream.next(max_history_quartile=stage.max_history_quartile)
-            seed = _sample_seed(
-                config.seed,
-                context.rank,
-                sample_index,
-                episode.task.instance_id,
-            )
-            sampled_update = builder.build_update(
-                (episode,),
-                rollout_policy,
-                seed=seed,
-                sampled_tokens_so_far=ledger.spent_tokens,
-                history_quartiles={episode.task.instance_id: episode_history_quartile(episode)},
-            )
-            instance = sampled_update.instances[0]
+            if not sampled_ready:
+                stage = stage_at(ledger.spent_tokens, ledger.target_tokens)
+                count = _safe_episode_batch_size(
+                    config, ledger, settings.rollout_episode_batch_size
+                )
+                admitted = []
+                for offset in range(count):
+                    episode = stream.next(max_history_quartile=stage.max_history_quartile)
+                    seed = _sample_seed(
+                        config.seed, context.rank, sample_index + offset, episode.task.instance_id
+                    )
+                    admitted.append((episode, seed))
+                instances = builder.sample_many(
+                    admitted, rollout_policy, allowed_actions=stage.actions
+                )
+                sampled_ready = [
+                    (member, stage, episode)
+                    for member, (episode, _) in zip(instances, admitted, strict=True)
+                ]
+            instance, stage, episode = sampled_ready.pop(0)
             if config.replay.fork_enabled:
                 realized = ReplayQuotaRecord(
                     sequence=sample_index,
                     curriculum_stage=stage.name,
                     allocation_stratum=f"{stage.name}:update{len(ledger.updates)}",
                     sampled_tokens_before=ledger.spent_tokens,
-                    branch_sampled_tokens=sampled_update.branch_sampled_tokens,
+                    branch_sampled_tokens=sum(r.sampled_tokens for r in instance.branch_rollouts),
                     occurrence_id=instance.occurrence_id,
                     episode_sha256=sha256_json(
                         episode_to_record(episode)  # type: ignore[arg-type]
@@ -2371,6 +2422,7 @@ def _run_vapa_training(
                 _append_jsonl(quota_output, realized.to_dict())
             sample_index += 1
             builder_counter += 1
+        phase_seconds["rollout_and_scoring"] += time.perf_counter() - started
         if instance.sampled_tokens <= 0:
             raise TrainingLifecycleError("a sampled instance produced no actor tokens")
         pending_instances.append(instance)
@@ -2384,6 +2436,8 @@ def _run_vapa_training(
         )
         if not closed:
             continue
+        if sampled_ready:
+            raise AssertionError("episode lookahead crossed an optimizer boundary")
         charges = ledger.updates[-1]
         if len(charges) != len(pending_instances):
             raise AssertionError("token ledger and pending instance groups diverged")
@@ -2416,11 +2470,15 @@ def _run_vapa_training(
         behavior_drift = None
         if loss_update is not None and loss_update.trainable_tokens:
             if components.rollout_backend is not None:
+                started = time.perf_counter()
                 components.rollout_backend.prepare_training()
+                phase_seconds["training_sync"] += time.perf_counter() - started
+                started = time.perf_counter()
                 behavior_drift = components.rollout_backend.behavior_diagnostics(
                     loss_update,
                     scaffold=settings.scaffold,
                 )
+                phase_seconds["behavior_audit"] += time.perf_counter() - started
             if isinstance(components.scheduler, SampledTokenCosineScheduler):
                 components.scheduler.prepare(ledger.spent_tokens)
             seed_everything(
@@ -2432,6 +2490,7 @@ def _run_vapa_training(
                 ),
                 deterministic=settings.deterministic,
             )
+            started = time.perf_counter()
             report = train_vapa_update(
                 loss_update,
                 tokenizer=components.tokenizer,
@@ -2445,6 +2504,7 @@ def _run_vapa_training(
                 gradient_clip=config.optimization.gradient_clip,
                 scaffold=settings.scaffold,
             )
+            phase_seconds["optimizer"] += time.perf_counter() - started
             global_step += 1
             trainable_tokens += report.action_tokens
         metric = _metric_payload(
@@ -2458,7 +2518,9 @@ def _run_vapa_training(
         )
         if behavior_drift is not None:
             metric["behavior_logprob_drift"] = behavior_drift
+        metric["host_phase_seconds"] = phase_seconds
         _append_jsonl(metrics_path, metric)
+        phase_seconds = dict.fromkeys(phase_seconds, 0.0)
         metric_records += 1
         pending_instances.clear()
         pending_stages.clear()
@@ -2504,6 +2566,8 @@ def _run_vapa_training(
         raise AssertionError("training stopped with a partial token-ledger update")
     if matched_ready:
         raise AssertionError("training stopped with an uncheckpointed allocation stratum")
+    if sampled_ready:
+        raise AssertionError("training stopped with unconsumed pre-admitted episodes")
     if status == "complete" and config.replay.reallocate_disabled_forks:
         if replay_quota_cursor != len(quota_records):
             raise TrainingLifecycleError(
@@ -2615,12 +2679,24 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="batch base and fork trajectories within each episode",
     )
+    parser.add_argument(
+        "--rollout-episode-batch-size",
+        type=int,
+        default=1,
+        help="maximum concurrent episodes; admission shrinks near curriculum and update boundaries",
+    )
     model = parser.add_argument_group("built-in Transformers backend")
     model.add_argument(
         "--generation-backend", choices=("transformers", "vllm"), default="transformers"
     )
     model.add_argument("--vllm-gpu-memory-utilization", type=float, default=0.4)
     model.add_argument("--vllm-max-num-seqs", type=int, default=32)
+    model.add_argument(
+        "--train-batch-tokens",
+        type=int,
+        default=0,
+        help="padded input-token cap per training forward batch; 0 keeps serial forwards",
+    )
     model.add_argument("--model-revision", help="immutable commit revision")
     model.add_argument("--tokenizer-name")
     model.add_argument("--tokenizer-revision")
@@ -2725,6 +2801,7 @@ def main(argv: list[str] | None = None) -> int:
             generation_backend=arguments.generation_backend,
             vllm_gpu_memory_utilization=arguments.vllm_gpu_memory_utilization,
             vllm_max_num_seqs=arguments.vllm_max_num_seqs,
+            train_batch_tokens=arguments.train_batch_tokens,
         )
         if arguments.dry_run:
             validate_transformers_load_plan(load_config(arguments.config), options)
@@ -2744,6 +2821,7 @@ def main(argv: list[str] | None = None) -> int:
         allow_non_paper_exact=arguments.allow_non_paper_exact,
         content_kind=arguments.content_kind,
         batched_rollouts=arguments.batched_rollouts,
+        rollout_episode_batch_size=arguments.rollout_episode_batch_size,
     )
     result = run_vapa_training(
         arguments.config,

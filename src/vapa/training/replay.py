@@ -102,6 +102,31 @@ def build_fork_branches(
     seed: int,
     allowed_actions: frozenset[ActionKind] | None = None,
 ) -> tuple[Rollout, ...]:
+    return tuple(
+        runner.fork_many(
+            fork_specs(
+                episode,
+                base_rollouts,
+                anchors=anchors,
+                siblings_per_fork=siblings_per_fork,
+                seed=seed,
+                allowed_actions=allowed_actions,
+            ),
+            policy,
+        )
+    )
+
+
+def fork_specs(
+    episode: Episode,
+    base_rollouts: Iterable[Rollout],
+    *,
+    anchors: Iterable[ForkAnchor],
+    siblings_per_fork: int,
+    seed: int,
+    allowed_actions: frozenset[ActionKind] | None = None,
+) -> tuple[ForkSpec, ...]:
+    """Describe forks independently of their serial or batched execution."""
     if siblings_per_fork < 1:
         return ()
     by_id: Mapping[str, Rollout] = {rollout.rollout_id: rollout for rollout in base_rollouts}
@@ -119,4 +144,4 @@ def build_fork_branches(
                 allowed_actions=allowed_actions,
             )
         )
-    return tuple(runner.fork_many(specs, policy))
+    return tuple(specs)

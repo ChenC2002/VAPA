@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 import random
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field, replace
 
 from vapa.actions import Action
@@ -167,55 +167,66 @@ class RolloutRunner:
                     allowed_actions=s.allowed_actions,
                 )
             ]
-        requests = []
-        for spec in specs:
-            if type(spec.anchor_turn) is not int or not 0 <= spec.anchor_turn < len(
-                spec.base.turns
-            ):
-                raise IndexError("fork anchor is outside the base rollout")
-            if type(spec.siblings) is not int or spec.siblings < 1:
-                raise ValueError("siblings must be a positive integer")
+        requests = [self._fork_request(spec) for spec in specs]
+        outputs = self._sample_many(policy, requests)
+        live = [
+            state
+            for spec, request, decisions in zip(specs, requests, outputs, strict=True)
+            for state in self._fork_states(spec, request.observation, decisions)
+        ]
+        return self._finish_many(live, policy)
+
+    def _fork_request(self, spec: ForkSpec) -> PolicyRequest:
+        if type(spec.anchor_turn) is not int or not 0 <= spec.anchor_turn < len(spec.base.turns):
+            raise IndexError("fork anchor is outside the base rollout")
+        if type(spec.siblings) is not int or spec.siblings < 1:
+            raise ValueError("siblings must be a positive integer")
+        manager = self.manager_factory(spec.episode)
+        manager.set_action_mask(spec.allowed_actions)
+        self._replay_prefix(manager, spec.base.turns[: spec.anchor_turn])
+        observation = manager.observation()
+        if observation.exact_bytes() != spec.base.turns[spec.anchor_turn].observation.exact_bytes():
+            raise RuntimeError("deterministic replay did not recover the logged observation")
+        return PolicyRequest(observation, random.Random(spec.seed), spec.siblings)
+
+    def _fork_states(
+        self, spec: ForkSpec, observation: Observation, decisions: Iterable[PolicyDecision]
+    ) -> Iterator[_LiveRollout]:
+        # Lazy construction preserves serial environment/scorer call order as well
+        # as RNG order; the batched caller explicitly collects the states first.
+        for index, decision in enumerate(decisions):
             manager = self.manager_factory(spec.episode)
             manager.set_action_mask(spec.allowed_actions)
             self._replay_prefix(manager, spec.base.turns[: spec.anchor_turn])
-            observation = manager.observation()
-            if (
-                observation.exact_bytes()
-                != spec.base.turns[spec.anchor_turn].observation.exact_bytes()
-            ):
-                raise RuntimeError("deterministic replay did not recover the logged observation")
-            requests.append(PolicyRequest(observation, random.Random(spec.seed), spec.siblings))
-        outputs = self._sample_many(policy, requests)
-        live = []
-        for spec, request, decisions in zip(specs, requests, outputs, strict=True):
-            for index, decision in enumerate(decisions):
-                manager = self.manager_factory(spec.episode)
-                manager.set_action_mask(spec.allowed_actions)
-                self._replay_prefix(manager, spec.base.turns[: spec.anchor_turn])
-                rollout = Rollout(
-                    f"{spec.base.rollout_id}:fork{spec.anchor_turn}:{index}",
-                    spec.base.instance_id,
-                    [self._copy_prefix(t) for t in spec.base.turns[: spec.anchor_turn]],
-                    is_base=False,
-                    parent_rollout_id=spec.base.rollout_id,
-                    fork_turn=spec.anchor_turn,
-                )
-                state = _LiveRollout(
-                    spec.episode,
-                    manager,
-                    rollout,
-                    random.Random(spec.seed * 1_000_003 + index),
-                )
-                self._advance(state, request.observation, decision, loss_mask=True)
-                live.append(state)
-        return self._finish_many(live, policy)
+            rollout = Rollout(
+                f"{spec.base.rollout_id}:fork{spec.anchor_turn}:{index}",
+                spec.base.instance_id,
+                [self._copy_prefix(t) for t in spec.base.turns[: spec.anchor_turn]],
+                is_base=False,
+                parent_rollout_id=spec.base.rollout_id,
+                fork_turn=spec.anchor_turn,
+            )
+            state = _LiveRollout(
+                spec.episode, manager, rollout, random.Random(spec.seed * 1_000_003 + index)
+            )
+            self._advance(state, observation, decision, loss_mask=True)
+            yield state
 
-    def _finish_many(self, live: list[_LiveRollout], policy: Policy) -> list[Rollout]:
+    def _finish_many(
+        self, live: list[_LiveRollout], policy: Policy, *, batched: bool = True
+    ) -> list[Rollout]:
         while active := [state for state in live if not state.manager.terminated]:
             requests = [
                 PolicyRequest(s.manager.observation(), s.rng, greedy=s.greedy) for s in active
             ]
-            outputs = self._sample_many(policy, requests)
+            outputs = (
+                self._sample_many(policy, requests)
+                if batched
+                else [
+                    self._sample(policy, r.observation, rng=r.rng, n=r.n, greedy=r.greedy)
+                    for r in requests
+                ]
+            )
             for state, request, decisions in zip(active, requests, outputs, strict=True):
                 self._advance(
                     state, request.observation, decisions[0], loss_mask=state.rollout.is_base
@@ -236,7 +247,9 @@ class RolloutRunner:
         ]
 
     @staticmethod
-    def _advance(state, observation, decision, *, loss_mask):
+    def _advance(
+        state: _LiveRollout, observation: Observation, decision: PolicyDecision, *, loss_mask: bool
+    ) -> None:
         result = (
             state.manager.step(decision.action)
             if decision.action is not None
@@ -261,30 +274,14 @@ class RolloutRunner:
         manager = self.manager_factory(episode)
         action_mask = None if allowed_actions is None else frozenset(allowed_actions)
         manager.set_action_mask(action_mask)
-        rng = random.Random(seed)
-        turns: list[Turn] = []
-        sampled_tokens = 0
-        while not manager.terminated:
-            observation = manager.observation()
-            decision = self._sample(policy, observation, rng=rng, n=1, greedy=greedy)[0]
-            result = (
-                manager.step(decision.action)
-                if decision.action is not None
-                else manager.step_text(decision.text)
-            )
-            sampled_tokens += decision.token_count
-            turns.append(self._turn(len(turns), observation, decision, result))
-        reward = self._score_outcome(episode, manager, turns)
-        return Rollout(
-            rollout_id=rollout_id,
-            instance_id=instance_id or episode.task.instance_id,
-            turns=turns,
-            outcome_reward=reward,
-            prediction=manager.prediction,
-            answer_evidence=manager.answer_evidence,
-            sampled_tokens=sampled_tokens,
-            did_terminate=manager.terminated,
+        state = _LiveRollout(
+            episode,
+            manager,
+            Rollout(rollout_id, instance_id or episode.task.instance_id, []),
+            random.Random(seed),
+            greedy,
         )
+        return self._finish_many([state], policy, batched=False)[0]
 
     def fork(
         self,
@@ -297,64 +294,16 @@ class RolloutRunner:
         seed: int,
         allowed_actions: Iterable[ActionKind] | None = None,
     ) -> list[Rollout]:
-        if type(anchor_turn) is not int or not 0 <= anchor_turn < len(base.turns):
-            raise IndexError("fork anchor is outside the base rollout")
-        if type(siblings) is not int or siblings < 1:
-            raise ValueError("siblings must be a positive integer")
         action_mask = None if allowed_actions is None else frozenset(allowed_actions)
-        manager = self.manager_factory(episode)
-        manager.set_action_mask(action_mask)
-        prefix_turns = base.turns[:anchor_turn]
-        self._replay_prefix(manager, prefix_turns)
-        recovered = manager.observation()
-        expected = base.turns[anchor_turn].observation
-        if recovered.exact_bytes() != expected.exact_bytes():
-            raise RuntimeError("deterministic replay did not recover the logged observation")
-        rng = random.Random(seed)
-        decisions = self._sample(policy, recovered, rng=rng, n=siblings, greedy=False)
-        branches: list[Rollout] = []
-        for branch_index, first_decision in enumerate(decisions):
-            branch_manager = self.manager_factory(episode)
-            branch_manager.set_action_mask(action_mask)
-            self._replay_prefix(branch_manager, prefix_turns)
-            copied = [self._copy_prefix(turn) for turn in base.turns[:anchor_turn]]
-            result = (
-                branch_manager.step(first_decision.action)
-                if first_decision.action is not None
-                else branch_manager.step_text(first_decision.text)
-            )
-            branch_turns = copied + [self._turn(anchor_turn, recovered, first_decision, result)]
-            sampled_tokens = first_decision.token_count
-            branch_rng = random.Random(seed * 1_000_003 + branch_index)
-            while not branch_manager.terminated:
-                observation = branch_manager.observation()
-                decision = self._sample(policy, observation, rng=branch_rng, n=1, greedy=False)[0]
-                result = (
-                    branch_manager.step(decision.action)
-                    if decision.action is not None
-                    else branch_manager.step_text(decision.text)
-                )
-                sampled_tokens += decision.token_count
-                continuation_turn = self._turn(len(branch_turns), observation, decision, result)
-                continuation_turn.loss_mask = False
-                branch_turns.append(continuation_turn)
-            reward = self._score_outcome(episode, branch_manager, branch_turns)
-            branches.append(
-                Rollout(
-                    rollout_id=f"{base.rollout_id}:fork{anchor_turn}:{branch_index}",
-                    instance_id=base.instance_id,
-                    turns=branch_turns,
-                    is_base=False,
-                    parent_rollout_id=base.rollout_id,
-                    fork_turn=anchor_turn,
-                    outcome_reward=reward,
-                    prediction=branch_manager.prediction,
-                    answer_evidence=branch_manager.answer_evidence,
-                    sampled_tokens=sampled_tokens,
-                    did_terminate=branch_manager.terminated,
-                )
-            )
-        return branches
+        spec = ForkSpec(episode, base, anchor_turn, siblings, seed, action_mask)
+        request = self._fork_request(spec)
+        decisions = self._sample(
+            policy, request.observation, rng=request.rng, n=siblings, greedy=False
+        )
+        return [
+            self._finish_many([state], policy, batched=False)[0]
+            for state in self._fork_states(spec, request.observation, decisions)
+        ]
 
     def _score_outcome(self, episode: Episode, manager: StateManager, turns: list[Turn]) -> float:
         valid_answer = bool(

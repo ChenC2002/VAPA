@@ -33,6 +33,7 @@ download model weights or need access to patient data.
 | --- | --- | --- |
 | Paper-reported references (earlier manuscript) | [`paper_results.json`](results/paper_results.json) | [`paper_results.jsonl`](logs/paper_results.jsonl) |
 | Tiny-model training checks | [`training_results.json`](results/training_results.json) | [`training_results.jsonl`](logs/training_results.jsonl) |
+| CUDA integration: Qwen3-0.6B and Qwen3.5-9B | [`cuda_results.json`](results/cuda_results.json) | [`cuda_results.jsonl`](logs/cuda_results.jsonl) |
 | Synthetic demo checks | [`demo_results.json`](results/demo_results.json) | [`demo_results.jsonl`](logs/demo_results.jsonl) |
 
 Each run saves its outputs in the directory you choose. Keep patient-level data on
@@ -157,21 +158,30 @@ run directory, use `--resume-from` for SFT or `--resume` for RL.
 <summary>Batched rollouts and optional vLLM</summary>
 
 Add `--batched-rollouts` to the RL command to advance base trajectories and fork
-siblings together. Episode admission, token budgets, and the training objective stay
-the same. Transformers remains the default generation backend.
+siblings together. `--rollout-episode-batch-size 8` also batches episodes when they
+fit before the next curriculum or optimizer boundary. Token budgets and the
+training objective stay the same. Transformers remains the default backend.
+Seeded CUDA generation is not batch-invariant; token counts come from the actual outputs.
 
-For the optional Linux/CUDA backend, install `'.[train,vllm]'`, set
+For the optional Linux/CUDA backend, install `'.[train,vllm]'` with
+`-c configs/cuda_constraints.txt` in a separate Python 3.13 environment, set
 `VLLM_USE_V2_MODEL_RUNNER=0`, and add `--generation-backend vllm --batched-rollouts`.
 This pins vLLM 0.31.0 and supports colocated bfloat16 LoRA training; the
 HF-dequantized GPT-OSS configuration is not supported. Adjust
 `--vllm-gpu-memory-utilization` and `--vllm-max-num-seqs` for your GPU.
 Adapter hashes and pre-update log-probability differences are saved in `metrics.jsonl`.
+It also records host time for rollout, synchronization, probability checks, and
+optimization. These are phase timings, not GPU utilization or end-to-end throughput.
 
-CPU tests cover batching, masks, synchronization, and resume. To run the opt-in GPU
-acceptance test, set `VAPA_VLLM_TEST_MODEL` to a supported causal model with
-`q_proj`/`v_proj` modules and
-`VAPA_VLLM_TEST_REVISION` to its commit, then run `pytest -m vllm`.
-GPU compatibility and throughput need to be checked on your target model and hardware.
+Training forwards remain serial by default. `--train-batch-tokens 1024` enables
+bounded, padded batches; BF16 kernel rounding can change gradients, so validate this
+option on your workload. The loss and its token denominator do not change.
+
+Run `python scripts/validate_cuda.py MODEL COMMIT runs/cuda-check` for generation
+timings, probability checks, FP32 gradient parity, and a LoRA update. For a short
+end-to-end run, use [`cuda_smoke_qwen.toml`](configs/cuda_smoke_qwen.toml) with
+[`tiny_rl.jsonl`](examples/tiny_rl.jsonl), `--demo-catalogs --content-kind public`,
+and `--max-optimizer-steps 2`. These use public test inputs.
 
 </details>
 

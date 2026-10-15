@@ -56,19 +56,14 @@ class Actor:
 class Engine:
     def __init__(self, **kwargs):
         assert kwargs["logprobs_mode"] == "processed_logprobs"
-        assert kwargs["skip_tokenizer_init"] is True
+        assert kwargs["skip_tokenizer_init"] is False
+        assert kwargs["language_model_only"] is True
+        assert kwargs["tokenizer_revision"] == kwargs["revision"]
         assert kwargs["generation_config"] == "vllm"
+        assert kwargs["max_loras"] == kwargs["max_cpu_loras"] == 1
         self.llm_engine = self.engine_core = self
         self.calls = []
-
-    def add_lora(self, adapter):
-        assert Path(adapter.lora_path, "adapter_model.safetensors").is_file()
-        self.calls.append(("add", adapter.lora_int_id))
-        return True
-
-    def remove_lora(self, adapter_id):
-        self.calls.append(("remove", adapter_id))
-        return True
+        self.adapters_seen = []
 
     def reset_prefix_cache(self):
         self.calls.append(("reset",))
@@ -84,6 +79,9 @@ class Engine:
         self.calls.append(("shutdown",))
 
     def generate(self, prompts, params, **kwargs):
+        adapter = kwargs["lora_request"]
+        assert Path(adapter.lora_path, "adapter_model.safetensors").is_file()
+        self.adapters_seen.append(adapter.lora_int_id)
         self.last_requests = (prompts, params, kwargs)
         return [
             SimpleNamespace(
@@ -138,6 +136,8 @@ def test_adapter_barrier_initial_resume_updates_sleep_and_cleanup(backend):
     first_path = Path(backend.adapter.lora_path)
     backend.prepare_sampling(8)
     assert backend.actor.exports == 1
+    backend.generate_batch([request()])
+    assert backend.engine.adapters_seen == [1]
     backend.prepare_training()
     with pytest.raises(RuntimeError, match="prepare_sampling"):
         backend.generate_batch([request()])
@@ -146,14 +146,13 @@ def test_adapter_barrier_initial_resume_updates_sleep_and_cleanup(backend):
     assert backend.actor.exports == 2
     assert first["adapter_sha256"] != backend.adapter_receipt["adapter_sha256"]
     assert not first_path.exists()
+    backend.generate_batch([request()])
+    assert backend.engine.adapters_seen == [1, 2]
     assert backend.engine.calls == [
         ("reset",),
-        ("add", 1),
         ("sleep", 1),
         ("wake",),
-        ("remove", 1),
         ("reset",),
-        ("add", 2),
     ]
     with pytest.raises(ValueError, match="backwards"):
         backend.prepare_sampling(0)
@@ -218,13 +217,29 @@ def test_generation_rejects_context_overflow(backend):
 def test_failed_adapter_sync_closes_engine_and_removes_temporary_exports(backend):
     backend.prepare_sampling(0)
     previous_path = Path(backend.adapter.lora_path)
-    backend.engine.add_lora = lambda adapter: False
-    with pytest.raises(RuntimeError, match="did not load"):
+    backend.engine.reset_prefix_cache = lambda: False
+    with pytest.raises(RuntimeError, match="stale prefix cache"):
         backend.prepare_sampling(1)
     assert backend._closed
     assert not previous_path.exists()
     with pytest.raises(RuntimeError, match="closed"):
         backend.prepare_sampling(1)
+
+
+def test_lazy_adapter_load_failure_closes_engine_and_cleans_snapshot(backend):
+    backend.prepare_sampling(0)
+    path = Path(backend.adapter.lora_path)
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("injected adapter loading failure")
+
+    backend.engine.generate = fail
+    with pytest.raises(RuntimeError, match="adapter loading"):
+        backend.generate_batch([request()])
+    assert backend._closed
+    assert not backend._generating
+    assert not path.exists()
+    assert backend.engine.calls[-1] == ("shutdown",)
 
 
 @pytest.mark.parametrize("n,greedy,temperature", [(1, False, 0.0), (1, True, 1.0), (2, True, 0.0)])
@@ -244,7 +259,8 @@ def test_missing_vllm_is_actionable_without_importing_it(monkeypatch):
         vllm_backend.load_vllm()
 
 
-def test_vllm_processor_and_hf_mask_have_identical_support(monkeypatch):
+@pytest.mark.parametrize("padding", [0, 8])
+def test_vllm_processor_and_hf_mask_have_identical_support(monkeypatch, padding):
     torch = pytest.importorskip("torch")
     from vapa.model.transformers import _masked_logit_row
 
@@ -301,7 +317,7 @@ def test_vllm_processor_and_hf_mask_have_identical_support(monkeypatch):
                     break
                 prefix += (rng.choice(choices),)
         for prefix in prefixes:
-            row = torch.arange(mask.vocab_size).float()
+            row = torch.arange(mask.vocab_size + padding).float()
             if mask.allowed_next(prefix) == ():
                 with pytest.raises(ValueError):
                     apply(list(prefix), row)
@@ -310,6 +326,9 @@ def test_vllm_processor_and_hf_mask_have_identical_support(monkeypatch):
                 row, mask.allowed_next(prefix), mask, mask.forbidden_next(prefix)
             )
             assert torch.equal(apply(list(prefix), row.clone()), expected)
+            assert torch.isneginf(expected[mask.vocab_size :]).all()
+        with pytest.raises(ValueError, match="smaller"):
+            _masked_logit_row(torch.zeros(mask.vocab_size - 1), None, mask)
         with pytest.raises(ValueError, match="action-prefix mask"):
             processor.new_req_logits_processor(SimpleNamespace(extra_args={}))
     finally:
@@ -335,12 +354,14 @@ def test_real_vllm_mask_adapter_update_and_behavior_probabilities():
     assert len(revision) == 40 and all(c in "0123456789abcdef" for c in revision)
     model = os.environ["VAPA_VLLM_TEST_MODEL"]
     actor = TransformersActorAdapter.from_pretrained(
-        model, revision=revision, device="cuda:0", dtype="bfloat16", model_kind="causal"
+        model, revision=revision, device="cuda:0", dtype="bfloat16", model_kind="auto"
     )
     actor, reference = apply_shared_lora(
         actor, rank=16, alpha=32, dropout=0.0, target_modules=("q_proj", "v_proj")
     )
-    tokenizer = TransformersTokenizerAdapter.from_pretrained(model, revision=revision)
+    tokenizer = TransformersTokenizerAdapter.from_pretrained(
+        model, revision=revision, chat_template_kwargs={"enable_thinking": False}
+    )
     backend = vllm_backend.VLLMGenerationBackend(
         actor, tokenizer, model=model, revision=revision, context_tokens=2048, max_lora_rank=16
     )

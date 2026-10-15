@@ -7,7 +7,7 @@ turn masks and advantages; no critic or learned reward model is instantiated her
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
 from vapa.config import ExperimentConfig
@@ -22,7 +22,7 @@ from vapa.training.advantages import (
 from vapa.training.curriculum import CurriculumStage, stage_at
 from vapa.training.groups import StepGroup, assign_step_groups
 from vapa.training.ledger import ReplayQuotaLedger
-from vapa.training.replay import build_fork_branches, select_fork_anchors
+from vapa.training.replay import fork_specs, select_fork_anchors
 from vapa.verifiers import VerifierCatalog
 
 
@@ -81,6 +81,15 @@ class UpdateBatch:
         )
 
 
+@dataclass(frozen=True)
+class _InstanceSpec:
+    episode: Episode
+    seed: int
+    occurrence_id: str
+    allowed_actions: frozenset[ActionKind] | None
+    defer_groups: bool = False
+
+
 class InstanceBatchBuilder:
     def __init__(
         self,
@@ -98,6 +107,34 @@ class InstanceBatchBuilder:
         """Build a one-instance update (the synthetic/demo convenience path)."""
 
         return self.build_update((episode,), policy, seed=seed).instances[0]
+
+    def sample_many(
+        self,
+        episodes_and_seeds: Sequence[tuple[Episode, int]],
+        policy: Policy,
+        *,
+        allowed_actions: frozenset[ActionKind],
+    ) -> tuple[InstanceBatch, ...]:
+        """Sample pre-admitted instances; normalize only at the optimizer boundary.
+
+        Seeds and occurrence IDs match repeated one-instance build_update calls.
+        The caller must not admit work past a curriculum or optimizer boundary.
+        Matched no-fork allocation has its own quota-driven admission path.
+        """
+        if self.config.replay.reallocate_disabled_forks:
+            raise ValueError("matched no-fork instances require quota-driven admission")
+        specs = []
+        for episode, seed in episodes_and_seeds:
+            source_id = episode.task.instance_id
+            occurrence = f"update{self._update_counter}:item0:id{len(source_id)}:{source_id}"
+            self._update_counter += 1
+            specs.append(_InstanceSpec(episode, seed * 1_000_003, occurrence, allowed_actions))
+        return tuple(
+            InstanceBatch(
+                episode.task.instance_id, bases[0].instance_id, bases, branches, groups, None
+            )
+            for episode, bases, branches, groups in self._sample_instances(specs, policy)
+        )
 
     def build_update(
         self,
@@ -264,59 +301,77 @@ class InstanceBatchBuilder:
         allowed_actions: frozenset[ActionKind] | None,
         defer_groups: bool = False,
     ) -> tuple[Episode, tuple[Rollout, ...], tuple[Rollout, ...], tuple[StepGroup, ...]]:
+        return self._sample_instances(
+            [_InstanceSpec(episode, seed, occurrence_id, allowed_actions, defer_groups)], policy
+        )[0]
+
+    def _sample_instances(self, specs: Sequence[_InstanceSpec], policy: Policy):
+        if not self.runner.batched and len(specs) > 1:
+            # Stateful serial policies retain their original invocation order.
+            return [self._sample_instances([spec], policy)[0] for spec in specs]
         replay = self.config.replay
         credit = self.config.credit
-        bases = tuple(
+        all_bases = tuple(
             self.runner.run_many(
                 [
                     RolloutSpec(
-                        episode,
-                        rollout_id=f"{occurrence_id}:base:{index}",
-                        seed=seed * 1_000_003 + index,
-                        instance_id=occurrence_id,
-                        allowed_actions=allowed_actions,
+                        spec.episode,
+                        rollout_id=f"{spec.occurrence_id}:base:{index}",
+                        seed=spec.seed * 1_000_003 + index,
+                        instance_id=spec.occurrence_id,
+                        allowed_actions=spec.allowed_actions,
                     )
+                    for spec in specs
                     for index in range(replay.base_group_size)
                 ],
                 policy,
             )
         )
-        if credit.use_process_rewards:
-            if self.verifiers is None:
-                raise ValueError("process rewards require a verifier catalog")
-            for rollout in bases:
-                self.verifiers.score_rollout(episode, rollout)
-
-        branches: tuple[Rollout, ...] = ()
-        groups: tuple[StepGroup, ...] = ()
-        if credit.use_step_credit:
-            if replay.fork_enabled:
+        pending_forks = []
+        members = []
+        for ordinal, spec in enumerate(specs):
+            start = ordinal * replay.base_group_size
+            bases = all_bases[start : start + replay.base_group_size]
+            self._score(spec.episode, bases)
+            member_forks = ()
+            if credit.use_step_credit and replay.fork_enabled:
                 anchors = select_fork_anchors(
                     bases,
-                    seed=seed + 17,
+                    seed=spec.seed + 17,
                     action_budget=self.config.environment.action_budget,
                     max_anchors=replay.max_fork_states,
                     memory_pressure_fraction=replay.memory_pressure_fraction,
-                    allowed_actions=allowed_actions,
+                    allowed_actions=spec.allowed_actions,
                 )
-                branches = build_fork_branches(
-                    episode,
+                member_forks = fork_specs(
+                    spec.episode,
                     bases,
-                    policy,
-                    self.runner,
                     anchors=anchors,
                     siblings_per_fork=replay.siblings_per_fork,
-                    seed=seed + 31,
-                    allowed_actions=allowed_actions,
+                    seed=spec.seed + 31,
+                    allowed_actions=spec.allowed_actions,
                 )
-                if credit.use_process_rewards:
-                    assert self.verifiers is not None
-                    for rollout in branches:
-                        self.verifiers.score_rollout(episode, rollout)
-            if not defer_groups:
+            pending_forks.extend(member_forks)
+            members.append((spec, bases, len(member_forks) * replay.siblings_per_fork))
+        all_branches = tuple(self.runner.fork_many(pending_forks, policy))
+        result, offset = [], 0
+        for spec, bases, branch_count in members:
+            branches = all_branches[offset : offset + branch_count]
+            offset += branch_count
+            self._score(spec.episode, branches)
+            groups = ()
+            if credit.use_step_credit and not spec.defer_groups:
                 groups = assign_step_groups(
                     bases,
                     branches,
-                    group_prefix=f"{occurrence_id}:",
+                    group_prefix=f"{spec.occurrence_id}:",
                 )
-        return episode, bases, branches, groups
+            result.append((spec.episode, bases, branches, groups))
+        return result
+
+    def _score(self, episode: Episode, rollouts: tuple[Rollout, ...]) -> None:
+        if self.config.credit.use_process_rewards:
+            if self.verifiers is None:
+                raise ValueError("process rewards require a verifier catalog")
+            for rollout in rollouts:
+                self.verifiers.score_rollout(episode, rollout)

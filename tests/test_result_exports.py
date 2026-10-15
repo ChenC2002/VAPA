@@ -15,6 +15,28 @@ PAPER = runpy.run_path(str(ROOT / "scripts/export_paper_results.py"))
 TRAINING = runpy.run_path(str(ROOT / "scripts/train_tiny.py"))
 
 
+@pytest.mark.parametrize("change", [None, "throughput", "gradient", "log", "config", "scope"])
+def test_cuda_records_reconcile_and_reject_modified_measurements(change):
+    validator = runpy.run_path(str(ROOT / "scripts/validate_release.py"))["validate_cuda_results"]
+    result = load_json(ROOT / "results/cuda_results.json")
+    metrics = load_jsonl(ROOT / "logs/cuda_results.jsonl")
+    if change == "throughput":
+        result["benchmarks"][0]["generation"]["batched"]["trials"][0]["sampled_tokens"] += 1
+    elif change == "gradient":
+        result["benchmarks"][0]["training"]["batch_gradient_within_5_percent"] = True
+    elif change == "log":
+        metrics[0]["loss"] += 0.1
+    elif change == "config":
+        result["rl"]["resolved_config"]["seed"] += 1
+    elif change == "scope":
+        result["paper_reproduction"] = True
+    if change is None:
+        validator(result, metrics)
+    else:
+        with pytest.raises(ValueError):
+            validator(result, metrics)
+
+
 def test_paper_export_matches_embedded_source_rows_and_log() -> None:
     result = load_json(ROOT / "results/paper_results.json")
     assert result["record_count"] == 100

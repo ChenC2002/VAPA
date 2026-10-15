@@ -1,0 +1,810 @@
+{
+  "schema_version": "vapa-cuda-results-v1",
+  "scope": "Single-GPU integration checks on public prompts and synthetic EHR fixtures.",
+  "paper_reproduction": false,
+  "benchmarks": [
+    {
+      "behavior_logprob_drift": {
+        "max_abs": 0.006332553923130035,
+        "mean_abs": 0.0007077830976811583,
+        "tokens": 48
+      },
+      "checkpoint_files": {
+        "checkpoint/README.md": "4fb01070dbf1c311649b741432747c286d5438547f54ccdea88930e6d7b47faa",
+        "checkpoint/actor/adapter_config.json": "9332e096070accf8cb8dd77b393a6da066d742b8fbf3a2302b5a101f0965e28b",
+        "checkpoint/actor/adapter_model.safetensors": "6f45df2207827797add25ab6149571834b020d4b3420f81751ad0c563be18e4a"
+      },
+      "checks": {
+        "adapter_changed": true,
+        "behavior_alignment": true,
+        "finite_batch_numerics": true,
+        "full_precision_gradient_alignment": true,
+        "full_precision_loss_alignment": true,
+        "nonzero_finite_gradient": true,
+        "reference_unchanged": true,
+        "updated_generation": true
+      },
+      "engine_start_seconds": 23.574351024115458,
+      "environment": {
+        "cuda_runtime": "13.0",
+        "machine": "x86_64",
+        "packages": {
+          "accelerate": "1.15.0",
+          "numpy": "2.4.6",
+          "peft": "0.21.2",
+          "tokenizers": "0.23.3",
+          "torch": "2.13.0",
+          "transformers": "5.17.0",
+          "vapa-ehr": "0.3.0",
+          "vllm": "0.31.0"
+        },
+        "python": "3.13.9",
+        "system": "Linux"
+      },
+      "full_precision_parity": {
+        "dtype": "float32",
+        "gradient_relative_l2_error": 1.5141813616698336e-05,
+        "loss": {
+          "batched": 0.0037632330786436796,
+          "serial": 0.0037632896564900875
+        },
+        "tf32": false
+      },
+      "generation": {
+        "batched": {
+          "median_tokens_per_second": 682.1098115162982,
+          "trials": [
+            {
+              "sampled_tokens": 48,
+              "seconds": 0.07091396814212203,
+              "tokens_per_second": 676.8765203464702
+            },
+            {
+              "sampled_tokens": 48,
+              "seconds": 0.07036990113556385,
+              "tokens_per_second": 682.1098115162982
+            },
+            {
+              "sampled_tokens": 48,
+              "seconds": 0.06999710900709033,
+              "tokens_per_second": 685.742606814488
+            }
+          ]
+        },
+        "identical_sequences": 8,
+        "serial": {
+          "median_tokens_per_second": 178.7902951212389,
+          "trials": [
+            {
+              "sampled_tokens": 48,
+              "seconds": 0.27126970305107534,
+              "tokens_per_second": 176.94567237006353
+            },
+            {
+              "sampled_tokens": 48,
+              "seconds": 0.2684709478635341,
+              "tokens_per_second": 178.7902951212389
+            },
+            {
+              "sampled_tokens": 48,
+              "seconds": 0.2682418851181865,
+              "tokens_per_second": 178.9429714857967
+            }
+          ]
+        }
+      },
+      "gpu": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+      "gpu_total_bytes": 101973819392,
+      "implementation_sha256": "cdb90276267d7b195900356e4f5f4d31af68f03c29f3260eced50c88e16cd246",
+      "initial_adapter": {
+        "actor_step": 0,
+        "adapter_sha256": "88d3a6fbc64c86df523caece0b5efcbec88f270ff5a39239cea8f57efbdb352d",
+        "files": {
+          "adapter_config.json": "9332e096070accf8cb8dd77b393a6da066d742b8fbf3a2302b5a101f0965e28b",
+          "adapter_model.safetensors": "46cda767688b9346335d178b2d7bcff42b0d23c046e28776f6509aa9c8dc34fb"
+        },
+        "logprobs_mode": "processed_logprobs",
+        "policy_id": "step-0:88d3a6fbc64c86df523caece0b5efcbec88f270ff5a39239cea8f57efbdb352d",
+        "vllm_version": "0.31.0"
+      },
+      "model": "Qwen/Qwen3-0.6B",
+      "nvidia_driver": "580.178.04",
+      "revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+      "runner_sha256": "f479de3519b8a028fd6f5ba13a653771a4db7e783d51778541f0c9c7103e1998",
+      "schema_version": "vapa-cuda-validation-v1",
+      "scope": "public-prompt backend integration and one LoRA optimizer update",
+      "seed": 7,
+      "settings": {
+        "dtype": "bfloat16",
+        "kl_weight": 0.01,
+        "learning_rate": 0.0001,
+        "lora_alpha": 32,
+        "lora_rank": 16,
+        "max_tokens": 64,
+        "repeats": 3,
+        "requests": 8,
+        "target_modules": [
+          "q_proj",
+          "v_proj"
+        ],
+        "train_batch_tokens": 1024
+      },
+      "sleep_seconds": 0.32853138097561896,
+      "training": {
+        "actor_process_peak_allocated_bytes": 1760256512,
+        "batch_gradient_within_5_percent": false,
+        "batching_default": "serial; BF16 batch differences require workload validation",
+        "eligible_action_tokens": 48,
+        "forward_backward_seconds": {
+          "batched": 0.09875948401167989,
+          "serial": 0.6416320968419313
+        },
+        "gradient_norm": 0.43475085496902466,
+        "gradient_relative_l2_error": 0.08403076329918387,
+        "loss": {
+          "batched": 0.004203211050480604,
+          "serial": 0.00420517660677433
+        },
+        "optimizer_steps": 1
+      },
+      "updated_adapter": {
+        "actor_step": 1,
+        "adapter_sha256": "0f16f96a7e6c5cc1fe8f9a3b96163aed3f97ccd52912d2e9395e70f742ca6f78",
+        "files": {
+          "adapter_config.json": "9332e096070accf8cb8dd77b393a6da066d742b8fbf3a2302b5a101f0965e28b",
+          "adapter_model.safetensors": "6f45df2207827797add25ab6149571834b020d4b3420f81751ad0c563be18e4a"
+        },
+        "logprobs_mode": "processed_logprobs",
+        "policy_id": "step-1:0f16f96a7e6c5cc1fe8f9a3b96163aed3f97ccd52912d2e9395e70f742ca6f78",
+        "vllm_version": "0.31.0"
+      },
+      "vllm": "0.31.0",
+      "wake_sync_seconds": 0.08282156405039132
+    },
+    {
+      "behavior_logprob_drift": {
+        "max_abs": 0.20720624923706055,
+        "mean_abs": 0.017290683201563368,
+        "tokens": 129
+      },
+      "checkpoint_files": {
+        "checkpoint/README.md": "b24b74667d1eb9c991047b4507c329613ae38707f4450446a94217081af69e96",
+        "checkpoint/actor/adapter_config.json": "b64032b0385f2b968d2082cf45180b45617730223351a4188c27f2de8dac06ac",
+        "checkpoint/actor/adapter_model.safetensors": "7041cc17be36928337042f8cfea736fd093f6e9c5623de00cb215c906fe5b6ef"
+      },
+      "checks": {
+        "adapter_changed": true,
+        "behavior_alignment": true,
+        "finite_batch_numerics": true,
+        "full_precision_gradient_alignment": true,
+        "full_precision_loss_alignment": true,
+        "nonzero_finite_gradient": true,
+        "reference_unchanged": true,
+        "updated_generation": true
+      },
+      "engine_start_seconds": 39.06266992702149,
+      "environment": {
+        "cuda_runtime": "13.0",
+        "machine": "x86_64",
+        "packages": {
+          "accelerate": "1.15.0",
+          "numpy": "2.4.6",
+          "peft": "0.21.2",
+          "tokenizers": "0.23.3",
+          "torch": "2.13.0",
+          "transformers": "5.17.0",
+          "vapa-ehr": "0.3.0",
+          "vllm": "0.31.0"
+        },
+        "python": "3.13.9",
+        "system": "Linux"
+      },
+      "full_precision_parity": {
+        "dtype": "float32",
+        "gradient_relative_l2_error": 1.9708432071231165e-05,
+        "loss": {
+          "batched": 0.15983113646507263,
+          "serial": 0.1598311811685562
+        },
+        "tf32": false
+      },
+      "generation": {
+        "batched": {
+          "median_tokens_per_second": 118.44283589392748,
+          "trials": [
+            {
+              "sampled_tokens": 129,
+              "seconds": 1.0907682550605386,
+              "tokens_per_second": 118.26526799025736
+            },
+            {
+              "sampled_tokens": 129,
+              "seconds": 1.0889670720789582,
+              "tokens_per_second": 118.4608821584704
+            },
+            {
+              "sampled_tokens": 129,
+              "seconds": 1.0891329899895936,
+              "tokens_per_second": 118.44283589392748
+            }
+          ]
+        },
+        "identical_sequences": 6,
+        "serial": {
+          "median_tokens_per_second": 52.99246161589207,
+          "trials": [
+            {
+              "sampled_tokens": 94,
+              "seconds": 1.777524600038305,
+              "tokens_per_second": 52.88253113232545
+            },
+            {
+              "sampled_tokens": 94,
+              "seconds": 1.7738372050225735,
+              "tokens_per_second": 52.99246161589207
+            },
+            {
+              "sampled_tokens": 94,
+              "seconds": 1.7734543001279235,
+              "tokens_per_second": 53.00390316977413
+            }
+          ]
+        }
+      },
+      "gpu": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+      "gpu_total_bytes": 101973819392,
+      "implementation_sha256": "cdb90276267d7b195900356e4f5f4d31af68f03c29f3260eced50c88e16cd246",
+      "initial_adapter": {
+        "actor_step": 0,
+        "adapter_sha256": "2d3349edcce645b44ee1331bcecb4724a2bcce70d6ae84022b7370515405bf4d",
+        "files": {
+          "adapter_config.json": "b64032b0385f2b968d2082cf45180b45617730223351a4188c27f2de8dac06ac",
+          "adapter_model.safetensors": "5a23e87abedbdc3f9163d490826ef3b55f8cbb1a2e37ebb7a4afbc4b4118c6d6"
+        },
+        "logprobs_mode": "processed_logprobs",
+        "policy_id": "step-0:2d3349edcce645b44ee1331bcecb4724a2bcce70d6ae84022b7370515405bf4d",
+        "vllm_version": "0.31.0"
+      },
+      "model": "Qwen/Qwen3.5-9B",
+      "nvidia_driver": "580.178.04",
+      "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+      "runner_sha256": "f479de3519b8a028fd6f5ba13a653771a4db7e783d51778541f0c9c7103e1998",
+      "schema_version": "vapa-cuda-validation-v1",
+      "scope": "public-prompt backend integration and one LoRA optimizer update",
+      "seed": 7,
+      "settings": {
+        "dtype": "bfloat16",
+        "kl_weight": 0.01,
+        "learning_rate": 0.0001,
+        "lora_alpha": 32,
+        "lora_rank": 16,
+        "max_tokens": 64,
+        "repeats": 3,
+        "requests": 8,
+        "target_modules": [
+          "q_proj",
+          "v_proj"
+        ],
+        "train_batch_tokens": 1024
+      },
+      "sleep_seconds": 3.491723373066634,
+      "training": {
+        "actor_process_peak_allocated_bytes": 29120289792,
+        "batch_gradient_within_5_percent": false,
+        "batching_default": "serial; BF16 batch differences require workload validation",
+        "eligible_action_tokens": 129,
+        "forward_backward_seconds": {
+          "batched": 0.3176294469740242,
+          "serial": 1.3174333649221808
+        },
+        "gradient_norm": 0.5590248107910156,
+        "gradient_relative_l2_error": 0.09003222798876327,
+        "loss": {
+          "batched": 0.15847602486610413,
+          "serial": 0.15800884366035461
+        },
+        "optimizer_steps": 1
+      },
+      "updated_adapter": {
+        "actor_step": 1,
+        "adapter_sha256": "2502c7c6c6d393278e90861c38353de6fdc319877120d77a56162ec8ee08aeb7",
+        "files": {
+          "adapter_config.json": "b64032b0385f2b968d2082cf45180b45617730223351a4188c27f2de8dac06ac",
+          "adapter_model.safetensors": "7041cc17be36928337042f8cfea736fd093f6e9c5623de00cb215c906fe5b6ef"
+        },
+        "logprobs_mode": "processed_logprobs",
+        "policy_id": "step-1:2502c7c6c6d393278e90861c38353de6fdc319877120d77a56162ec8ee08aeb7",
+        "vllm_version": "0.31.0"
+      },
+      "vllm": "0.31.0",
+      "wake_sync_seconds": 0.5065243099816144
+    }
+  ],
+  "rl": {
+    "scope": "Pretrained Qwen3.5-9B with fresh LoRA: two VAPA updates, then checkpoint resume for one additional update; no SFT or held-out evaluation.",
+    "config": "configs/cuda_smoke_qwen.toml",
+    "episodes": "examples/tiny_rl.jsonl",
+    "metrics": "logs/cuda_results.jsonl",
+    "train_batch_tokens": 0,
+    "commands": [
+      "vapa-train configs/cuda_smoke_qwen.toml examples/tiny_rl.jsonl runs/cuda-rl --demo-catalogs --content-kind public --allow-base-model-init --model-revision c202236235762e1c871ad0ccb60c8ee5ba337b9a --model-kind multimodal --use-processor yes --device cuda:0 --lora-target-module q_proj --lora-target-module v_proj --generation-backend vllm --batched-rollouts --checkpoint-every 1 --nondeterministic --max-optimizer-steps 2",
+      "vapa-train configs/cuda_smoke_qwen.toml examples/tiny_rl.jsonl runs/cuda-rl --demo-catalogs --content-kind public --allow-base-model-init --model-revision c202236235762e1c871ad0ccb60c8ee5ba337b9a --model-kind multimodal --use-processor yes --device cuda:0 --lora-target-module q_proj --lora-target-module v_proj --generation-backend vllm --batched-rollouts --checkpoint-every 1 --nondeterministic --max-optimizer-steps 3 --resume runs/cuda-rl/checkpoints/periodic-step-00000002-tokens-000000000598"
+    ],
+    "command_path_note": "Run directory paths are normalized; the resume checkpoint name is from the recorded execution. New sampled runs can have different token counts and checkpoint names.",
+    "receipt": {
+      "checkpoint": {
+        "files": 5,
+        "kind": "directory",
+        "sha256": "7fb2b96ae2274d8f5f9041b9642b9c39b139967049ed69f7838446d082d5f68d"
+      },
+      "config_sha256": "b3275d16d5cd849a9ea0fbd31eefd68c0fe2e043413bb3556b19b6062f08dd17",
+      "device": "cuda:0",
+      "environment": {
+        "cuda_runtime": "13.0",
+        "machine": "x86_64",
+        "packages": {
+          "accelerate": "1.15.0",
+          "numpy": "2.4.6",
+          "peft": "0.21.2",
+          "tokenizers": "0.23.3",
+          "torch": "2.13.0",
+          "transformers": "5.17.0",
+          "vapa-ehr": "0.3.0",
+          "vllm": "0.31.0"
+        },
+        "python": "3.13.9",
+        "system": "Linux"
+      },
+      "evaluation": null,
+      "execution_journal_sha256": "ab25db6f7169d105f5509f4d86f2c0b26b945d6bc0112d60a1da49b62f5bd812",
+      "implementation_sha256": "cdb90276267d7b195900356e4f5f4d31af68f03c29f3260eced50c88e16cd246",
+      "limitations": [
+        "No claim of pretrained initialization, original study data, or paper-exact catalogs.",
+        "Data permissions and anonymous-release suitability require separate review."
+      ],
+      "metrics_sha256": "940bd0b4554940e63b6c0df3119ef921bbb179a57459967f895833ba8697866c",
+      "optimizer_updates": 3,
+      "paper_reproduction": false,
+      "run_manifest_sha256": "98515499ef894184284a4f14ad21df5299bed9ff9eedc70fce67ef162f29c8e3",
+      "sampled_tokens": 887,
+      "schema_version": "vapa-run-receipt-v1",
+      "seed": 7,
+      "stage": "rl",
+      "status": "max_optimizer_steps",
+      "trainable_tokens": 283,
+      "verification_scope": "file integrity and linkage; not independent execution attestation"
+    },
+    "receipt_before_resume": {
+      "checkpoint": {
+        "files": 5,
+        "kind": "directory",
+        "sha256": "9c5b977f9ffbbe30ab1ea0f395036279b684acd32b8962a45c3d7bb370da367e"
+      },
+      "config_sha256": "b3275d16d5cd849a9ea0fbd31eefd68c0fe2e043413bb3556b19b6062f08dd17",
+      "device": "cuda:0",
+      "environment": {
+        "cuda_runtime": "13.0",
+        "machine": "x86_64",
+        "packages": {
+          "accelerate": "1.15.0",
+          "numpy": "2.4.6",
+          "peft": "0.21.2",
+          "tokenizers": "0.23.3",
+          "torch": "2.13.0",
+          "transformers": "5.17.0",
+          "vapa-ehr": "0.3.0",
+          "vllm": "0.31.0"
+        },
+        "python": "3.13.9",
+        "system": "Linux"
+      },
+      "evaluation": null,
+      "execution_journal_sha256": "ec4c2567e95727eca469e921fce751a59b3dd505caf41840083aa9d26031fd57",
+      "implementation_sha256": "cdb90276267d7b195900356e4f5f4d31af68f03c29f3260eced50c88e16cd246",
+      "limitations": [
+        "No claim of pretrained initialization, original study data, or paper-exact catalogs.",
+        "Data permissions and anonymous-release suitability require separate review."
+      ],
+      "metrics_sha256": "1043145e9b9c1009f7c7541a5d537f425ed92d0cb169d43c8e02ccd83cf1acd8",
+      "optimizer_updates": 2,
+      "paper_reproduction": false,
+      "run_manifest_sha256": "98515499ef894184284a4f14ad21df5299bed9ff9eedc70fce67ef162f29c8e3",
+      "sampled_tokens": 598,
+      "schema_version": "vapa-run-receipt-v1",
+      "seed": 7,
+      "stage": "rl",
+      "status": "max_optimizer_steps",
+      "trainable_tokens": 189,
+      "verification_scope": "file integrity and linkage; not independent execution attestation"
+    },
+    "run_manifest": {
+      "actor_fingerprint": "d199a612ceddd39ce07b1aa99eb1b372d718edcff15dced5a1a7f1bc0a576f82",
+      "allow_non_paper_exact": false,
+      "batched_rollouts": true,
+      "calculator_manifest_sha256": "70d96a1a0204cf1c8497ccbfc51275b57e223ba857751ae74eed4762aceed76a",
+      "checkpoint_every": 1,
+      "component_factory": "functools:partial@sha256:4969717b632b4eec3643cdde3c443dcc4824085935f9687c1f4ee3f60073dfff",
+      "component_id": "vapa:transformers-v1+vllm-0.31.0-v1",
+      "config_fingerprint": "58ef0d9c4d230f8e0c817b340c6a6f630fcd849c29e63d9cb65b1db7e0922ee1",
+      "config_sha256": "9d727348c4365a07a9aabe5508a29cd406dc7a4378aa265a369e0f932f701866",
+      "content_kind": "public",
+      "control_pairing_contract": {
+        "actor_fingerprint": "d199a612ceddd39ce07b1aa99eb1b372d718edcff15dced5a1a7f1bc0a576f82",
+        "allow_non_paper_exact": false,
+        "batched_rollouts": true,
+        "calculator_manifest_sha256": "70d96a1a0204cf1c8497ccbfc51275b57e223ba857751ae74eed4762aceed76a",
+        "component_factory": "functools:partial@sha256:4969717b632b4eec3643cdde3c443dcc4824085935f9687c1f4ee3f60073dfff",
+        "component_id": "vapa:transformers-v1+vllm-0.31.0-v1",
+        "credit_config": "490725ecd0cb3927500ca5a3e9044a4b8768441b9fb3d4c31a30f1f7c3613a58",
+        "demo_catalogs": true,
+        "deterministic": false,
+        "environment_config": "b8374e7d6247ba3792ac245179440aeb1266543ae888805148ac764b4a3a7b9b",
+        "environment_spec": {
+          "action_budget": 3,
+          "calculator_manifest": {
+            "calculators": [
+              {
+                "absolute_tolerance": 0.05,
+                "expression": "(sbp + 2 * dbp) / 3",
+                "inputs": [
+                  {
+                    "fields": [
+                      "systolic_blood_pressure"
+                    ],
+                    "name": "sbp",
+                    "unit": "mmHg"
+                  },
+                  {
+                    "fields": [
+                      "diastolic_blood_pressure"
+                    ],
+                    "name": "dbp",
+                    "unit": "mmHg"
+                  }
+                ],
+                "name": "mean_arterial_pressure_demo",
+                "output_decimals": 1,
+                "output_unit": "mmHg"
+              }
+            ],
+            "paper_exact": false,
+            "schema_version": 1
+          },
+          "calculator_manifest_sha256": "574b38a209116b0624e47b96da76ed21fa68df163a73eb67b737e2322d5f39f6",
+          "implementation_sha256": "cdb90276267d7b195900356e4f5f4d31af68f03c29f3260eced50c88e16cd246",
+          "memory_capacity": 8,
+          "retrieval_limit": 5,
+          "schema_version": 1,
+          "turn_cap": 4
+        },
+        "episodes_sha256": "4e8026cc8cac1a27042bb20733dbf18b3aaddd9e85fa9800e5126bbed3fed275",
+        "inference_spec": {
+          "context_tokens": 4096,
+          "dequantize_mxfp4": false,
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "enable_thinking": false,
+          "format_version": 1,
+          "generation": {
+            "max_tokens": 64,
+            "temperature": 1.0,
+            "top_k": 0,
+            "top_p": 1.0
+          },
+          "lora_alpha": 32,
+          "lora_dropout": 0.0,
+          "lora_enabled": true,
+          "lora_rank": 16,
+          "lora_target_modules": [
+            "q_proj",
+            "v_proj"
+          ],
+          "model_kind": "multimodal",
+          "model_name": "Qwen/Qwen3.5-9B",
+          "model_revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+          "reasoning_effort": null,
+          "scaffold": "",
+          "tokenizer_name": "Qwen/Qwen3.5-9B",
+          "tokenizer_revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+          "use_processor": true
+        },
+        "initial_state_sha256": "ee4488da714a7499629c46494d4e92b6688f5235c480f320091a18aacf6af57a",
+        "initialization_identity": {
+          "kind": "base-model-ablation",
+          "model_name": "Qwen/Qwen3.5-9B",
+          "model_revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+          "sha256": "a30303feeb6e1ae99a3637106fc5b7dc3a5a7a37737214a70c4d65b4f40e6659"
+        },
+        "kl_mode": "forward",
+        "model_config": "156b4243d9bf0dcdb2c9366ed8cc3a56125980f7b49fb3cef93028657c301a36",
+        "optimization_config": "29c130a92d51248ab06e7c90bdcae1b335efc09d46ae347de5429ae3855c4f29",
+        "outcome_scorer": "vapa.rollouts:exact_outcome_scorer@sha256:a872c9c5d8d58967c7124f34546b5d9abbd364b6381bd4da12d6cb441e045db8",
+        "package_version": "0.3.0",
+        "rank": 0,
+        "ratio_clip": null,
+        "reference_fingerprint": "d199a612ceddd39ce07b1aa99eb1b372d718edcff15dced5a1a7f1bc0a576f82",
+        "replay_allocation": {
+          "base_group_size": 2,
+          "max_fork_states": 1,
+          "memory_pressure_fraction": 0.75,
+          "siblings_per_fork": 2
+        },
+        "rollout_episode_batch_size": 1,
+        "scaffold_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "schema_version": 1,
+        "seed": 7,
+        "shard_sha256": "4bdc71db32028208332fa367bd89478b62500d1b7239021238baba25affb3809",
+        "tokenizer_fingerprint": "9cb8f289d618c8748e1ab7e814d6942b629dc86b396cb0d7d761de306fae6136",
+        "verifier_catalog_fingerprint": "0915fa96a4e9a39487d3c24b47997588447c5d482af365af6f53c7388a19a9e5",
+        "verifier_catalog_id": "demo-v1-not-paper-exact",
+        "verifier_factory": "vapa.verifiers:VerifierCatalog.demo_default",
+        "verifier_manifest_sha256": "60e9a785ad5e52302af76055e8595b817554ff2921317e362e7ba63a60a554d9",
+        "world_size": 1
+      },
+      "demo_catalogs": true,
+      "deterministic": false,
+      "environment_spec": {
+        "action_budget": 3,
+        "calculator_manifest": {
+          "calculators": [
+            {
+              "absolute_tolerance": 0.05,
+              "expression": "(sbp + 2 * dbp) / 3",
+              "inputs": [
+                {
+                  "fields": [
+                    "systolic_blood_pressure"
+                  ],
+                  "name": "sbp",
+                  "unit": "mmHg"
+                },
+                {
+                  "fields": [
+                    "diastolic_blood_pressure"
+                  ],
+                  "name": "dbp",
+                  "unit": "mmHg"
+                }
+              ],
+              "name": "mean_arterial_pressure_demo",
+              "output_decimals": 1,
+              "output_unit": "mmHg"
+            }
+          ],
+          "paper_exact": false,
+          "schema_version": 1
+        },
+        "calculator_manifest_sha256": "574b38a209116b0624e47b96da76ed21fa68df163a73eb67b737e2322d5f39f6",
+        "implementation_sha256": "cdb90276267d7b195900356e4f5f4d31af68f03c29f3260eced50c88e16cd246",
+        "memory_capacity": 8,
+        "retrieval_limit": 5,
+        "schema_version": 1,
+        "turn_cap": 4
+      },
+      "episodes_sha256": "4e8026cc8cac1a27042bb20733dbf18b3aaddd9e85fa9800e5126bbed3fed275",
+      "fork_enabled": true,
+      "inference_spec": {
+        "context_tokens": 4096,
+        "dequantize_mxfp4": false,
+        "device": "cuda:0",
+        "dtype": "bfloat16",
+        "enable_thinking": false,
+        "format_version": 1,
+        "generation": {
+          "max_tokens": 64,
+          "temperature": 1.0,
+          "top_k": 0,
+          "top_p": 1.0
+        },
+        "lora_alpha": 32,
+        "lora_dropout": 0.0,
+        "lora_enabled": true,
+        "lora_rank": 16,
+        "lora_target_modules": [
+          "q_proj",
+          "v_proj"
+        ],
+        "model_kind": "multimodal",
+        "model_name": "Qwen/Qwen3.5-9B",
+        "model_revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+        "reasoning_effort": null,
+        "scaffold": "",
+        "tokenizer_name": "Qwen/Qwen3.5-9B",
+        "tokenizer_revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+        "use_processor": true
+      },
+      "initial_state_sha256": "ee4488da714a7499629c46494d4e92b6688f5235c480f320091a18aacf6af57a",
+      "initialization_identity": {
+        "kind": "base-model-ablation",
+        "model_name": "Qwen/Qwen3.5-9B",
+        "model_revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+        "sha256": "a30303feeb6e1ae99a3637106fc5b7dc3a5a7a37737214a70c4d65b4f40e6659"
+      },
+      "input_artifacts": {
+        "calculator_manifest": {
+          "sha256": "70d96a1a0204cf1c8497ccbfc51275b57e223ba857751ae74eed4762aceed76a",
+          "size_bytes": 451
+        },
+        "config": {
+          "sha256": "9d727348c4365a07a9aabe5508a29cd406dc7a4378aa265a369e0f932f701866",
+          "size_bytes": 528
+        },
+        "episodes": {
+          "sha256": "4e8026cc8cac1a27042bb20733dbf18b3aaddd9e85fa9800e5126bbed3fed275",
+          "size_bytes": 1589
+        },
+        "verifier_manifest": {
+          "sha256": "60e9a785ad5e52302af76055e8595b817554ff2921317e362e7ba63a60a554d9",
+          "size_bytes": 441
+        }
+      },
+      "kl_mode": "forward",
+      "outcome_scorer": "vapa.rollouts:exact_outcome_scorer@sha256:a872c9c5d8d58967c7124f34546b5d9abbd364b6381bd4da12d6cb441e045db8",
+      "package_version": "0.3.0",
+      "rank": 0,
+      "ratio_clip": null,
+      "reference_fingerprint": "d199a612ceddd39ce07b1aa99eb1b372d718edcff15dced5a1a7f1bc0a576f82",
+      "replay_quota": {
+        "kind": "none"
+      },
+      "rollout_episode_batch_size": 1,
+      "run_id": "vapa",
+      "sampled_token_budget": 4096,
+      "scaffold_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "scaffold_size_bytes": 0,
+      "schema_version": 1,
+      "seed": 7,
+      "shard_sha256": "4bdc71db32028208332fa367bd89478b62500d1b7239021238baba25affb3809",
+      "tokenizer_fingerprint": "9cb8f289d618c8748e1ab7e814d6942b629dc86b396cb0d7d761de306fae6136",
+      "verifier_catalog_fingerprint": "0915fa96a4e9a39487d3c24b47997588447c5d482af365af6f53c7388a19a9e5",
+      "verifier_catalog_id": "demo-v1-not-paper-exact",
+      "verifier_factory": "vapa.verifiers:VerifierCatalog.demo_default",
+      "verifier_manifest_sha256": "60e9a785ad5e52302af76055e8595b817554ff2921317e362e7ba63a60a554d9",
+      "verifier_paper_exact": false,
+      "world_size": 1
+    },
+    "resolved_config": {
+      "credit": {
+        "cost_weight": 0.02,
+        "epsilon": 1e-08,
+        "local_weight": 1.0,
+        "process_discount": 1.0,
+        "process_weight": 0.05,
+        "use_process_rewards": true,
+        "use_step_credit": true
+      },
+      "environment": {
+        "action_budget": 3,
+        "context_tokens": 4096,
+        "max_turn_tokens": 64,
+        "memory_capacity": 8,
+        "turn_cap": 4
+      },
+      "model": {
+        "dequantize_mxfp4": false,
+        "dtype": "bfloat16",
+        "name": "Qwen/Qwen3.5-9B",
+        "reasoning_effort": null,
+        "temperature": 1.0,
+        "thinking": false,
+        "top_k": 0,
+        "top_p": 1.0
+      },
+      "name": "cuda_smoke_qwen3_5_9b",
+      "optimization": {
+        "final_lr_fraction": 0.1,
+        "gradient_clip": 1.0,
+        "kl_weight": 0.01,
+        "lora_alpha": 32,
+        "lora_dropout": 0.0,
+        "lora_rank": 16,
+        "rl_learning_rate": 5e-06,
+        "sampled_token_budget": 4096,
+        "sft_learning_rate": 0.0001,
+        "update_token_floor": 256,
+        "warmup_fraction": 0.0,
+        "weight_decay": 0.01
+      },
+      "replay": {
+        "base_group_size": 2,
+        "fork_enabled": true,
+        "max_fork_states": 1,
+        "memory_pressure_fraction": 0.75,
+        "reallocate_disabled_forks": false,
+        "siblings_per_fork": 2
+      },
+      "seed": 7
+    },
+    "execution_journal": [
+      {
+        "config_sha256": "b3275d16d5cd849a9ea0fbd31eefd68c0fe2e043413bb3556b19b6062f08dd17",
+        "device": "cuda:0",
+        "environment": {
+          "cuda_runtime": "13.0",
+          "machine": "x86_64",
+          "packages": {
+            "accelerate": "1.15.0",
+            "numpy": "2.4.6",
+            "peft": "0.21.2",
+            "tokenizers": "0.23.3",
+            "torch": "2.13.0",
+            "transformers": "5.17.0",
+            "vapa-ehr": "0.3.0",
+            "vllm": "0.31.0"
+          },
+          "python": "3.13.9",
+          "system": "Linux"
+        },
+        "event": "start",
+        "execution_id": "b6cf516326874c0b9112d633bc578f39",
+        "implementation_sha256": "cdb90276267d7b195900356e4f5f4d31af68f03c29f3260eced50c88e16cd246",
+        "previous_sha256": null,
+        "run_manifest_sha256": "98515499ef894184284a4f14ad21df5299bed9ff9eedc70fce67ef162f29c8e3",
+        "stage": "rl",
+        "time_utc": "2026-10-15T04:40:22.803584+00:00"
+      },
+      {
+        "checkpoint": {
+          "files": 5,
+          "kind": "directory",
+          "sha256": "9c5b977f9ffbbe30ab1ea0f395036279b684acd32b8962a45c3d7bb370da367e"
+        },
+        "event": "finish",
+        "execution_id": "b6cf516326874c0b9112d633bc578f39",
+        "metrics_sha256": "1043145e9b9c1009f7c7541a5d537f425ed92d0cb169d43c8e02ccd83cf1acd8",
+        "previous_sha256": "ed004fc0832f0f539b6e301b87995d2aee6fbd9bf69d64eeddcdbe94955c641c",
+        "status": "max_optimizer_steps",
+        "time_utc": "2026-10-15T04:42:23.569787+00:00"
+      },
+      {
+        "config_sha256": "b3275d16d5cd849a9ea0fbd31eefd68c0fe2e043413bb3556b19b6062f08dd17",
+        "device": "cuda:0",
+        "environment": {
+          "cuda_runtime": "13.0",
+          "machine": "x86_64",
+          "packages": {
+            "accelerate": "1.15.0",
+            "numpy": "2.4.6",
+            "peft": "0.21.2",
+            "tokenizers": "0.23.3",
+            "torch": "2.13.0",
+            "transformers": "5.17.0",
+            "vapa-ehr": "0.3.0",
+            "vllm": "0.31.0"
+          },
+          "python": "3.13.9",
+          "system": "Linux"
+        },
+        "event": "start",
+        "execution_id": "4788c502fab643d7ba57511f790ec29f",
+        "implementation_sha256": "cdb90276267d7b195900356e4f5f4d31af68f03c29f3260eced50c88e16cd246",
+        "previous_sha256": "1e1e350a65645894c5200195293a80f2cfb07cc31ce0d78b5a43ca4333c73345",
+        "run_manifest_sha256": "98515499ef894184284a4f14ad21df5299bed9ff9eedc70fce67ef162f29c8e3",
+        "stage": "rl",
+        "time_utc": "2026-10-15T04:43:30.025604+00:00"
+      },
+      {
+        "checkpoint": {
+          "files": 5,
+          "kind": "directory",
+          "sha256": "7fb2b96ae2274d8f5f9041b9642b9c39b139967049ed69f7838446d082d5f68d"
+        },
+        "event": "finish",
+        "execution_id": "4788c502fab643d7ba57511f790ec29f",
+        "metrics_sha256": "940bd0b4554940e63b6c0df3119ef921bbb179a57459967f895833ba8697866c",
+        "previous_sha256": "5b1be56266795ffd89f7151497e62ac4a8b6123ad417f9450e9964902f603965",
+        "status": "max_optimizer_steps",
+        "time_utc": "2026-10-15T04:44:23.944578+00:00"
+      }
+    ]
+  },
+  "limitations": [
+    "Generation timings cover eight short public prompts, three trials per mode, warm kernels, and a prefix-cache reset before each trial. Output lengths can differ between modes; these are not full-workload speedups.",
+    "BF16 serial/batched training gradients differed by about 8-9% in these checks. Training forward batching remains opt-in; the independent FP32 parity checks passed.",
+    "Qwen3.5-9B serial/batched generation matched 6 of 8 sequences. Per-request seeds do not guarantee batch-invariant outputs.",
+    "The RL fixture run recorded zero answer success in its three updates. It validates execution and checkpoint resume, not clinical quality or learning efficacy.",
+    "Transformers used reference PyTorch kernels for Qwen3.5 linear attention and causal convolution; optimized training kernels were not benchmarked.",
+    "vLLM 0.31 emitted an allocator teardown error when shutting down the sleeping RL engine; its process manager terminated the worker after timeout. Checkpoints and receipts were saved and verified before teardown.",
+    "Multi-GPU training, full paper budgets, restricted patient data, and GPT-OSS/vLLM compatibility are not validated by these records."
+  ]
+}

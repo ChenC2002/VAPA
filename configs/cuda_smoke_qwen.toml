@@ -1,0 +1,30 @@
+# Short integration run on public fixtures, not the main experiment budget.
+name = "cuda_smoke_qwen3_5_9b"
+seed = 7
+
+[environment]
+action_budget = 3
+turn_cap = 4
+context_tokens = 4096
+max_turn_tokens = 64
+
+[replay]
+base_group_size = 2
+max_fork_states = 1
+siblings_per_fork = 2
+
+[optimization]
+sampled_token_budget = 4096
+update_token_floor = 256
+warmup_fraction = 0.0
+lora_rank = 16
+lora_alpha = 32
+lora_dropout = 0.0
+
+[model]
+name = "Qwen/Qwen3.5-9B"
+thinking = false
+dtype = "bfloat16"
+temperature = 1.0
+top_p = 1.0
+top_k = 0

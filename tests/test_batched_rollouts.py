@@ -73,6 +73,39 @@ class MixedPolicy:
         return decisions
 
 
+def test_cross_episode_sampling_preserves_seeds_ids_groups_and_normalization():
+    from vapa.training.curriculum import stage_at
+    from vapa.training.rl_train import _combine_and_normalize
+
+    config = ExperimentConfig()
+    stage = stage_at(0, config.optimization.sampled_token_budget)
+    episodes = [(tiny_episode(), seed) for seed in (7, 11, 19)]
+    serial = InstanceBatchBuilder(
+        config, RolloutRunner(StateManager), VerifierCatalog.demo_default()
+    )
+    batched = InstanceBatchBuilder(
+        config, RolloutRunner(StateManager, batched=True), VerifierCatalog.demo_default()
+    )
+    policy = CountingPolicy()
+    expected = [
+        serial.build_update(
+            (episode,),
+            HeuristicPolicy(),
+            seed=seed,
+            sampled_tokens_so_far=0,
+            history_quartiles={episode.task.instance_id: 1},
+        ).instances[0]
+        for episode, seed in episodes
+    ]
+    actual = batched.sample_many(episodes, policy, allowed_actions=stage.actions)
+    assert _combine_and_normalize(actual, [stage] * 3, config) == _combine_and_normalize(
+        expected, [stage] * 3, config
+    )
+    assert batched._update_counter == serial._update_counter == 3
+    assert max(map(len, policy.widths)) >= 3 * config.replay.base_group_size
+    assert [config.replay.siblings_per_fork] * (3 * config.replay.max_fork_states) in policy.widths
+
+
 def test_ragged_rollouts_and_forks_match_sequential_with_serial_policy_fallback():
     episode = tiny_episode()
     mask = frozenset((ActionKind.QUERY_FIELD, ActionKind.ANSWER))
@@ -102,6 +135,52 @@ def test_batch_replay_verifies_exact_observation_before_sampling():
     base.turns[0].observation = replace(base.turns[0].observation, budget_remaining=0)
     with pytest.raises(RuntimeError, match="deterministic replay"):
         runner.fork_many([ForkSpec(episode, base, 0, 2, 7)], MixedPolicy())
+
+
+@pytest.mark.parametrize("batched", [False, True])
+def test_single_fork_preserves_serial_environment_policy_and_scorer_order(batched):
+    events = []
+
+    class Manager(StateManager):
+        def step(self, action):
+            events.append(action.kind.value)
+            return super().step(action)
+
+    def factory(episode):
+        events.append("manager")
+        return Manager(episode)
+
+    def scorer(episode, prediction, evidence):
+        events.append("score")
+        return 1.0
+
+    class Policy:
+        def sample(self, observation, *, rng, n=1, greedy=False):
+            events.append(f"sample:{n}")
+            action = (
+                make_action(ActionKind.QUERY_FIELD, field="value", window="all")
+                if n == 2
+                else make_action(ActionKind.ANSWER, prediction="ok", evidence=[])
+            )
+            return [PolicyDecision(action, token_count=3) for _ in range(n)]
+
+        def sample_many(self, requests):
+            pytest.fail("single-trajectory API must keep the legacy sampling order")
+
+    runner = RolloutRunner(factory, outcome_scorer=scorer, batched=batched)
+    episode = tiny_episode()
+    base = runner.run(episode, Policy(), rollout_id="b", seed=1)
+    assert events == ["manager", "sample:1", ActionKind.ANSWER.value, "score"]
+    events.clear()
+    branches = runner.fork(episode, base, Policy(), anchor_turn=0, siblings=2, seed=2)
+    assert (
+        events
+        == ["manager", "sample:2"]
+        + ["manager", ActionKind.QUERY_FIELD.value, "sample:1", ActionKind.ANSWER.value, "score"]
+        * 2
+    )
+    assert [b.sampled_tokens for b in branches] == [6, 6]
+    assert [[t.loss_mask for t in b.turns] for b in branches] == [[True, False]] * 2
 
 
 def test_batch_policy_validates_request_and_candidate_counts():

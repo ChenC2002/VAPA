@@ -42,7 +42,7 @@
   "provenance": {
     "fixture": "examples/tiny_sft.jsonl",
     "fixture_sha256": "f159f248655533e6d5375f9063208de83ad4cb756186131b358c7ddf210af25b",
-    "implementation_sha256": "d69e7d8fa67a49436e9798d462dff2e46c8a3e290d4680c77d5adfb83836b0fc",
+    "implementation_sha256": "cdb90276267d7b195900356e4f5f4d31af68f03c29f3260eced50c88e16cd246",
     "runner_sha256": "7945c17ecad6c63026fe589f710bdfe2fb7bcce95b7ccf08f53b20857f7b3eaa"
   },
   "sft": {
@@ -71,19 +71,20 @@
           "tokenizers": "0.23.2",
           "torch": "2.14.0",
           "transformers": "5.16.1",
-          "vapa-ehr": "0.3.0"
+          "vapa-ehr": "0.3.0",
+          "vllm": null
         },
         "python": "3.13.5",
         "system": "Darwin"
       },
-      "implementation_sha256": "d69e7d8fa67a49436e9798d462dff2e46c8a3e290d4680c77d5adfb83836b0fc",
-      "config_sha256": "2383d4b61639f1d2b098e95791b4f323cd4e2d66c851ed03c241ac2a48f7ad03",
-      "run_manifest_sha256": "9d19c0337995279915a4a4b53abcd4c248a3ad797cefb67fd0e07d7d9e398831",
-      "execution_journal_sha256": "a21893b57b78800a5bd93c98fae9b6ec265b584aad91f9e393d1c46cfb8bb2aa",
+      "implementation_sha256": "cdb90276267d7b195900356e4f5f4d31af68f03c29f3260eced50c88e16cd246",
+      "config_sha256": "0e0e03e540f2d8e861c7b84ac3bc4c19f261145526d7965cb8a51e066624a4ba",
+      "run_manifest_sha256": "9fbb5e2400200e1f2a08c911518cee443782776902f511c2f5a0ba1b482b3535",
+      "execution_journal_sha256": "a0eedb9a8b9dd561998a9d74708aac8fe089a6798b0389cd3b9abaaf79de6c32",
       "metrics_sha256": "1b2d6fe1c40fa6c62155bdb16a2edf9ec37a7d3cdd7913c3f19a81a12956e0a2",
       "checkpoint": {
         "kind": "directory",
-        "sha256": "1c063a82364355eb22a3da966ebfb29a1c6a43821c9a5fec69c710b860e24d32",
+        "sha256": "34ea1965052bbe01f0094a55868d8d267ea4cbdaffe62d7cce40ac0b2643fabd",
         "files": 5
       },
       "optimizer_updates": 16,

@@ -67,13 +67,13 @@ def _masked_logit_row(
 
     values = row.float()
     width = int(values.shape[-1])
-    if width != mask.vocab_size:
+    if width < mask.vocab_size:
         raise ValueError(
-            "model-logit vocabulary does not match the feasible-action tokenizer vocabulary"
+            "model-logit vocabulary is smaller than the feasible-action tokenizer vocabulary"
         )
     if allowed is not None and forbidden:
         raise ValueError("a token position cannot have both allow and deny support")
-    if allowed is None and not forbidden:
+    if allowed is None and not forbidden and width == mask.vocab_size:
         return values
     if allowed is not None and not allowed:
         raise ValueError("generated tokens diverged from every feasible action prefix")
@@ -81,6 +81,11 @@ def _masked_logit_row(
     if allowed is None:
         excluded = torch.zeros_like(values, dtype=torch.bool)
         excluded[list(forbidden)] = True
+        # Qwen and other backbones pad their output vocabulary for tensor cores.
+        # These extra logits have no tokenizer IDs and must never enter either
+        # the sampling distribution or the exact actor/reference KL support.
+        if width > mask.vocab_size:
+            excluded[mask.vocab_size :] = True
     else:
         excluded = torch.ones_like(values, dtype=torch.bool)
         excluded[list(allowed)] = False
@@ -221,6 +226,21 @@ class TransformersTokenizerAdapter:
         )
 
     @staticmethod
+    def _token_ids(encoded: Any) -> tuple[int, ...]:
+        """Normalize tokenizer and processor outputs without changing token IDs."""
+        if isinstance(encoded, Mapping):
+            if "input_ids" not in encoded:
+                raise ValueError("chat template output is missing input_ids")
+            encoded = encoded["input_ids"]
+        if callable(getattr(encoded, "tolist", None)):
+            encoded = encoded.tolist()
+        if len(encoded) and isinstance(encoded[0], list | tuple):
+            if len(encoded) != 1:
+                raise ValueError("expected one tokenized conversation, not a batch")
+            encoded = encoded[0]
+        return tuple(int(token) for token in encoded)
+
+    @staticmethod
     def _fallback_text(
         messages: Sequence[Mapping[str, str]], *, add_generation_prompt: bool
     ) -> str:
@@ -249,7 +269,7 @@ class TransformersTokenizerAdapter:
         else:
             rendered = self._fallback_text(normalized, add_generation_prompt=add_generation_prompt)
             encoded = self.tokenizer.encode(rendered, add_special_tokens=True)
-        result = tuple(int(token) for token in encoded)
+        result = self._token_ids(encoded)
         if not result:
             raise ValueError("the tokenizer produced an empty prompt")
         return result
@@ -289,9 +309,8 @@ class TransformersTokenizerAdapter:
                 if {"role", "content"}.intersection(assistant_fields):
                     raise ValueError("assistant_fields cannot replace role or content")
                 assistant.update(assistant_fields)
-            full_ids = tuple(
-                int(token)
-                for token in template(
+            full_ids = self._token_ids(
+                template(
                     normalized + [assistant],
                     tokenize=True,
                     add_generation_prompt=False,
@@ -308,9 +327,8 @@ class TransformersTokenizerAdapter:
                 artificial: list[tuple[int, ...]] = []
                 for assistant_content in ("", probe):
                     artificial.append(
-                        tuple(
-                            int(token)
-                            for token in template(
+                        self._token_ids(
+                            template(
                                 normalized + [{"role": "assistant", "content": assistant_content}],
                                 tokenize=True,
                                 add_generation_prompt=False,
@@ -734,9 +752,8 @@ class TransformersTokenizerAdapter:
 class TransformersActorAdapter:
     """Text-logit model adapter whose objectives cover action tokens only.
 
-    The implementation evaluates each intact action separately.  This favors clear
-    masking semantics and backend portability; high-throughput deployments can supply
-    another :class:`~vapa.model.protocols.ActorModelAdapter` with packed kernels.
+    Forward batching is optional and bounded by padded input tokens. Comparison
+    groups, action masks, and the global loss denominator are independent of padding.
     """
 
     def __init__(
@@ -747,6 +764,7 @@ class TransformersActorAdapter:
         provenance: Mapping[str, object] | None = None,
         adapter_name: str | None = None,
         adapter_trainable: bool = True,
+        forward_batch_tokens: int = 0,
     ) -> None:
         if not callable(model):
             raise TypeError("model must be callable")
@@ -758,6 +776,8 @@ class TransformersActorAdapter:
             raise ValueError("adapter_name must be a non-empty, trimmed string or None")
         if not isinstance(adapter_trainable, bool):
             raise TypeError("adapter_trainable must be a boolean")
+        if type(forward_batch_tokens) is not int or forward_batch_tokens < 0:
+            raise ValueError("forward_batch_tokens must be a nonnegative integer")
         if adapter_name is not None and not callable(getattr(model, "set_adapter", None)):
             raise TypeError("named-adapter models must provide set_adapter()")
         self.model = model
@@ -765,6 +785,7 @@ class TransformersActorAdapter:
         self.provenance = dict(provenance or {})
         self.adapter_name = adapter_name
         self.adapter_trainable = adapter_trainable
+        self.forward_batch_tokens = forward_batch_tokens
         self._training = bool(getattr(model, "training", False))
 
     @property
@@ -805,6 +826,7 @@ class TransformersActorAdapter:
         dtype: str | None = None,
         model_kind: str = "auto",
         dequantize_mxfp4: bool = False,
+        forward_batch_tokens: int = 0,
         **kwargs: Any,
     ) -> TransformersActorAdapter:
         if not isinstance(dequantize_mxfp4, bool):
@@ -860,6 +882,7 @@ class TransformersActorAdapter:
         return cls(
             model,
             device=device,
+            forward_batch_tokens=forward_batch_tokens,
             provenance={
                 "name": name,
                 "revision": kwargs.get("revision"),
@@ -920,12 +943,55 @@ class TransformersActorAdapter:
             return torch.device("cpu")
 
     def _action_logits(self, example: TokenizedAction) -> Any:
+        return self._action_logits_batch((example,))[0]
+
+    def _action_batch_slices(self, examples: Sequence[TokenizedAction]):
+        """Keep order; a single oversized action retains the legacy execution path."""
+        start, longest = 0, 0
+        for index, example in enumerate(examples):
+            length = len(example.prompt_ids) + len(example.action_ids)
+            if index > start and (
+                not self.forward_batch_tokens
+                or max(longest, length) * (index - start + 1) > self.forward_batch_tokens
+            ):
+                yield start, index
+                start, longest = index, 0
+            longest = max(longest, length)
+        if start < len(examples):
+            yield start, len(examples)
+
+    def _action_logits_batch(self, examples: Sequence[TokenizedAction]) -> list[Any]:
         torch = _require_torch()
+        if not examples:
+            raise ValueError("an action forward batch cannot be empty")
         self._prepare_forward()
-        sequence = example.prompt_ids + example.action_ids
-        input_ids = torch.tensor([sequence], dtype=torch.long, device=self._model_device())
-        output = self.model(input_ids=input_ids, attention_mask=torch.ones_like(input_ids))
-        return output.logits[0, len(example.prompt_ids) - 1 : len(sequence) - 1]
+        if len(examples) == 1:
+            input_ids = torch.tensor(
+                [examples[0].prompt_ids + examples[0].action_ids],
+                dtype=torch.long,
+                device=self._model_device(),
+            )
+            attention_mask = torch.ones_like(input_ids)
+        else:
+            from torch.nn.utils.rnn import pad_sequence
+
+            sequences = [
+                torch.tensor(
+                    e.prompt_ids + e.action_ids, dtype=torch.long, device=self._model_device()
+                )
+                for e in examples
+            ]
+            input_ids = pad_sequence(sequences, batch_first=True, padding_value=0)
+            attention_mask = pad_sequence(
+                [torch.ones_like(sequence) for sequence in sequences],
+                batch_first=True,
+                padding_value=0,
+            )
+        output = self.model(input_ids=input_ids, attention_mask=attention_mask, use_cache=False)
+        return [
+            output.logits[i, len(e.prompt_ids) - 1 : len(e.prompt_ids) + len(e.action_ids) - 1]
+            for i, e in enumerate(examples)
+        ]
 
     @staticmethod
     def _mask_action_logits(example: TokenizedAction, logits: Any, *, offset: int = 0) -> Any:
@@ -958,13 +1024,15 @@ class TransformersActorAdapter:
         context = torch.enable_grad() if requires_grad else torch.no_grad()
         result: list[Any] = []
         with context:
-            for example in examples:
-                normalized_logits = self._mask_action_logits(example, self._action_logits(example))
-                targets = torch.tensor(
-                    example.action_ids, dtype=torch.long, device=self._model_device()
-                )
-                log_probs = torch.log_softmax(normalized_logits, dim=-1)
-                result.append(log_probs.gather(-1, targets.unsqueeze(-1)).squeeze(-1))
+            for start, stop in self._action_batch_slices(examples):
+                batch = examples[start:stop]
+                for example, logits in zip(batch, self._action_logits_batch(batch), strict=True):
+                    normalized_logits = self._mask_action_logits(example, logits)
+                    targets = torch.tensor(
+                        example.action_ids, dtype=torch.long, device=self._model_device()
+                    )
+                    log_probs = torch.log_softmax(normalized_logits, dim=-1)
+                    result.append(log_probs.gather(-1, targets.unsqueeze(-1)).squeeze(-1))
         return result
 
     def binary_answer_probability(self, position: BinaryAnswerPosition) -> float:
@@ -1002,6 +1070,22 @@ class TransformersActorAdapter:
     @staticmethod
     def _metric(value: Any) -> float:
         return float(value.detach().float().cpu().item())
+
+    def _paired_action_logits(self, examples: Sequence[VAPAAction], reference):
+        torch = _require_torch()
+        tokens = tuple(item.tokens for item in examples)
+        for start, stop in self._action_batch_slices(tokens):
+            batch = tokens[start:stop]
+            try:
+                with torch.no_grad():
+                    reference_rows = reference._action_logits_batch(batch)
+            finally:
+                # PEFT's active adapter is shared state. Restore it before actor
+                # forward and before any deferred checkpoint recomputation.
+                if reference.model is self.model:
+                    self._prepare_forward()
+            actor_rows = self._action_logits_batch(batch)
+            yield from zip(examples[start:stop], actor_rows, reference_rows, strict=True)
 
     def sft_loss(self, examples: Sequence[TokenizedAction]) -> LossReport:
         torch = _require_torch()
@@ -1051,19 +1135,14 @@ class TransformersActorAdapter:
             raise ValueError("an action-token loss requires at least one example")
         from torch.utils.checkpoint import checkpoint
 
+        from vapa.training.loss import action_token_sums
+
         policy_terms: list[Any] = []
         kl_terms: list[Any] = []
         token_count = sum(example.token_count for example in examples)
-        for example in examples:
-            try:
-                with torch.no_grad():
-                    reference_logits = reference._action_logits(example.tokens)
-            finally:
-                # Shared PEFT activation is global: restore the trainable actor before
-                # its forward pass and the deferred backward callback.
-                if shared_backbone:
-                    self._prepare_forward()
-            actor_logits = self._action_logits(example.tokens)
+        for example, actor_logits, reference_logits in self._paired_action_logits(
+            examples, reference
+        ):
             if actor_logits.shape != reference_logits.shape:
                 raise ValueError("actor and reference must use the same vocabulary")
             for offset in range(0, example.token_count, 64):
@@ -1077,27 +1156,17 @@ class TransformersActorAdapter:
                     start: int = offset,
                     end: int = stop,
                 ) -> tuple[Any, Any]:
-                    # FP32 renormalization on identical grammar support. Bind the
-                    # history/offset here: checkpoint recomputes this after the loop.
-                    actor_log = torch.log_softmax(
-                        self._mask_action_logits(item.tokens, actor_chunk, offset=start), dim=-1
-                    )
-                    reference_log = torch.log_softmax(
-                        self._mask_action_logits(item.tokens, reference_chunk, offset=start), dim=-1
-                    )
+                    # Bind history/offset: checkpoint recomputes this after the loop.
                     targets = torch.tensor(
-                        item.tokens.action_ids[start:end], dtype=torch.long, device=actor_log.device
+                        item.tokens.action_ids[start:end],
+                        dtype=torch.long,
+                        device=actor_chunk.device,
                     )
-                    sampled_log = actor_log.gather(-1, targets.unsqueeze(-1)).squeeze(-1)
-                    # Excluded vocabulary entries have zero mass. Zero their log terms
-                    # before subtraction to avoid NaN from (-inf)-(-inf) in autograd.
-                    excluded = torch.isneginf(actor_log)
-                    difference = actor_log.masked_fill(excluded, 0.0) - reference_log.masked_fill(
-                        excluded, 0.0
-                    )
-                    return (
-                        -item.advantage * sampled_log.sum(),
-                        (actor_log.exp() * difference).sum(),
+                    return action_token_sums(
+                        self._mask_action_logits(item.tokens, actor_chunk, offset=start),
+                        self._mask_action_logits(item.tokens, reference_chunk, offset=start),
+                        targets,
+                        advantage=item.advantage,
                     )
 
                 # Recompute only the vocabulary normalization during backward instead
@@ -1482,6 +1551,7 @@ def apply_shared_lora(
         provenance=provenance,
         adapter_name=reference_adapter_name,
         adapter_trainable=False,
+        forward_batch_tokens=actor.forward_batch_tokens,
     )
     reference.load_state_dict(actor.state_dict())
     actor._activate_adapter()

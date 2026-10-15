@@ -101,6 +101,10 @@ class TokenLedger:
         return max(0, self.spent_tokens - self.target_tokens)
 
     @property
+    def tokens_until_update(self) -> int:
+        return min(self.update_floor - self._current_tokens, self.target_tokens - self.spent_tokens)
+
+    @property
     def loss_updates(self) -> list[list[GroupCharge]]:
         """Optimizer view, including the intact group that crosses the run quota."""
 

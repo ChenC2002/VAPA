@@ -10,12 +10,12 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-ROOT_FILES = frozenset({"README.md", "pyproject.toml", ".gitignore"})
+ROOT_FILES = frozenset({"README.md", "AGENTS.md", "pyproject.toml", ".gitignore"})
 PUBLIC_DIRECTORIES = frozenset({".github", "configs", "examples", "scripts", "src", "tests"})
 SNAPSHOTS = frozenset(
     f"{directory}/{name}_results.{extension}"
     for directory, extension in (("results", "json"), ("logs", "jsonl"))
-    for name in ("demo", "paper", "training")
+    for name in ("demo", "paper", "training", "cuda")
 )
 EXCLUDED_PARTS = frozenset(
     {".git", "__pycache__", ".pytest_cache", ".ruff_cache", "runs", "checkpoints", "build", "dist"}

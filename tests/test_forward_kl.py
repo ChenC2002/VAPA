@@ -56,7 +56,8 @@ def test_chunked_loss_and_gradients_match_dense_forward_kl(masked: bool, kl_weig
             super().__init__()
             self.logits = torch.nn.Parameter(torch.randn(90, 7))
 
-        def forward(self, input_ids, attention_mask):
+        def forward(self, input_ids, attention_mask, use_cache):
+            assert use_cache is False
             return SimpleNamespace(logits=self.logits[: input_ids.shape[1]].unsqueeze(0))
 
     actor_model, reference_model = LogitModel(), LogitModel()
@@ -110,3 +111,87 @@ def test_chunked_loss_and_gradients_match_dense_forward_kl(masked: bool, kl_weig
         ratio_clip=None,
         kl_mode="forward",
     ).total == pytest.approx(report.total)
+
+
+@pytest.mark.model
+@pytest.mark.parametrize("partitions", [(9,), (1, 8), (2, 1, 6)])
+@pytest.mark.parametrize("dtype", ["float32", "bfloat16"])
+def test_tensor_kernel_is_invariant_to_unequal_microbatch_partition(partitions, dtype):
+    from vapa.training.loss import action_token_sums
+
+    torch = pytest.importorskip("torch")
+    generator = torch.Generator().manual_seed(43)
+    actor = torch.randn(9, 5, generator=generator, dtype=getattr(torch, dtype)).requires_grad_()
+    reference = torch.randn(9, 5, generator=generator, dtype=getattr(torch, dtype)).requires_grad_()
+    targets = torch.arange(9) % 4
+    support = torch.tensor([True, True, True, True, False])
+    p = actor[:, :4].float().log_softmax(-1)
+    q = reference[:, :4].detach().float().log_softmax(-1)
+    dense = (-1.7 * p.gather(-1, targets[:, None]).sum() + 0.2 * (p.exp() * (p - q)).sum()) / 9
+    expected_grad = torch.autograd.grad(dense, actor)[0]
+    total = 0.0
+    start = 0
+    for length in partitions:
+        stop = start + length
+        policy, kl = action_token_sums(
+            actor[start:stop].masked_fill(~support, -torch.inf),
+            reference[start:stop].masked_fill(~support, -torch.inf),
+            targets[start:stop],
+            advantage=1.7,
+        )
+        assert policy.dtype == kl.dtype == torch.float32
+        loss = (policy + 0.2 * kl) / 9
+        total += loss.item()
+        loss.backward()
+        start = stop
+    assert total == pytest.approx(dense.item(), abs=1e-6)
+    torch.testing.assert_close(actor.grad, expected_grad)
+    assert torch.count_nonzero(actor.grad[:, 4]) == 0
+    assert reference.grad is None
+
+
+@pytest.mark.model
+def test_runtime_unequal_groups_match_one_dense_optimizer_step(monkeypatch):
+    """Exercise the actual trainer's global reduction, not just a mock backward scale."""
+    torch = pytest.importorskip("torch")
+    from vapa.training import runtime
+
+    torch.manual_seed(37)
+
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.logits = torch.nn.Parameter(torch.randn(16, 5))
+
+        def forward(self, input_ids, attention_mask, use_cache):
+            assert use_cache is False
+            return SimpleNamespace(logits=self.logits[: input_ids.shape[1]].unsqueeze(0))
+
+    actor_model, reference_model = Model(), Model()
+    actor = TransformersActorAdapter(actor_model, device="cpu")
+    reference = TransformersActorAdapter(reference_model, device="cpu")
+    examples = tuple(
+        VAPAAction(TokenizedAction((0,), (1,) * n), (-1.0,) * n, advantage)
+        for n, advantage in ((2, 1.7), (7, -0.8), (3, 0.2))
+    )
+    dense = actor.vapa_loss(
+        examples, reference=reference, kl_weight=0.2, ratio_clip=None, kl_mode="forward"
+    )
+    dense.backward()
+    expected_weights = actor_model.logits.detach() - 0.01 * actor_model.logits.grad
+    groups = tuple(runtime.IntactActionGroup(f"g{i}", (item,)) for i, item in enumerate(examples))
+    monkeypatch.setattr(runtime, "collect_vapa_action_groups", lambda *a, **kw: groups)
+    report = runtime.train_vapa_update(
+        None,
+        tokenizer=None,
+        actor=actor,
+        reference=reference,
+        optimizer=torch.optim.SGD(actor.parameters(), lr=0.01),
+        kl_weight=0.2,
+        gradient_clip=100.0,
+    )
+    assert report.loss == pytest.approx(dense.total, abs=1e-6)
+    assert report.action_tokens == 12
+    assert report.microbatches == 3
+    torch.testing.assert_close(actor_model.logits, expected_weights)
+    assert reference_model.logits.grad is None

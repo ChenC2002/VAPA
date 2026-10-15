@@ -107,7 +107,13 @@ def test_clean_sdist_contains_review_files_and_builds_a_complete_wheel(tmp_path:
         target.write_bytes(payload)
     # A clean export must work without Git metadata or stale setuptools manifests.
     # Deliberately add local artifacts: neither distribution may publish them.
-    for name in ("runs/private.json", "results/private.json", "src/vapa/.env", "data/private.csv"):
+    for name in (
+        "runs/private.json",
+        "results/private.json",
+        "src/vapa/.env",
+        "src/vapa/model/.env.local",
+        "data/private.csv",
+    ):
         target = source / name
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text("private fixture", encoding="utf-8")
